@@ -1,0 +1,1734 @@
+-- ════════════════════════════════════════════════════════════════
+--  REMOTE SPAM V4 — FINAL EDITION
+--  GUI Própria + Gerador de Relatório Completo + Fire Avançado
+--  Delta Mobile · Sistema de Variações de Argumentos
+-- ════════════════════════════════════════════════════════════════
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local lp = Players.LocalPlayer
+local pg = lp:WaitForChild("PlayerGui")
+
+-- ════════════════════════════════════════════════════════════════
+--  LIMPAR GUIS ANTIGAS
+-- ════════════════════════════════════════════════════════════════
+pcall(function()
+    for _, n in ipairs({"RS4_GUI", "RS4_Notif", "RS4_Modal", "RS4_Report", "RemoteSpamV4"}) do
+        local old = pg:FindFirstChild(n)
+        if old then old:Destroy() end
+    end
+end)
+
+-- ════════════════════════════════════════════════════════════════
+--  CONFIGURAÇÕES
+-- ════════════════════════════════════════════════════════════════
+local Settings = {
+    SafeMode = true,
+    Delay = 0.05,
+    AutoSpam = false,
+    AutoInterval = 1.0,
+    Spoofing = true,
+    IncludePrompts = true,
+    IncludeClicks = true,
+    IncludeRemotes = true,
+    TestMode = false -- Modo teste para descobrir argumentos
+}
+
+local Stats = {Fired = 0, Blocked = 0, Spoofed = 0, Errors = 0, Accepted = 0}
+
+-- ════════════════════════════════════════════════════════════════
+--  SISTEMA ANTI-KICK
+-- ════════════════════════════════════════════════════════════════
+local Blacklist = {
+    "devtools", "dev_tools", "devtool", "rbxdev", "robloxdevtools",
+    "coredevtools", "core_scripts", "corescripts", "internalremote",
+    "rbxinternal", "studio", "studiotools", "coregui", "core_gui",
+    "kick", "ban", "remove", "punish", "mute", "warn", "jail", "freeze",
+    "report", "admin", "mod", "anticheat", "anti_cheat", "disconnect",
+    "exile", "bootplayer", "sanction", "suspend", "terminate",
+    "log", "audit", "security", "violation", "exploit", "hack",
+    "bypass", "detection", "detector", "watcher", "monitor",
+    "shutdown", "restart", "crash", "error", "debug", "breakpoint"
+}
+
+local ForbiddenParents = {
+    "CoreGui", "CoreScripts", "RobloxGui", "RobloxDevTools",
+    "DevToolsModule", "StudioDataModel", "CorePackages",
+    "RobloxPlugin", "Internal", "RobloxInternal"
+}
+
+local RateCache = {}
+
+local function IsBlacklisted(name)
+    if not name then return true end
+    local low = tostring(name):lower()
+    for _, kw in ipairs(Blacklist) do
+        if string.find(low, kw, 1, true) then return true, kw end
+    end
+    return false
+end
+
+local function IsForbiddenPath(obj)
+    if not obj then return false end
+    local cur = obj
+    for _ = 1, 20 do
+        if not cur or cur == game then break end
+        local name = tostring(cur.Name):lower()
+        for _, fp in ipairs(ForbiddenParents) do
+            if name == fp:lower() then return true end
+        end
+        cur = cur.Parent
+    end
+    return false
+end
+
+local function CheckRate(obj)
+    local now = tick()
+    if RateCache[obj] and (now - RateCache[obj]) < 0.08 then return false end
+    RateCache[obj] = now
+    return true
+end
+
+local function SpoofArgs(args)
+    if not Settings.Spoofing then return args end
+    local new = {}
+    for i, v in ipairs(args) do
+        if typeof(v) == "Instance" and v:IsA("Player") and v == lp then
+            new[i] = nil
+        elseif typeof(v) == "Vector3" then
+            new[i] = v + Vector3.new(math.random(-5, 5)/1000, 0, math.random(-5, 5)/1000)
+        elseif typeof(v) == "CFrame" then
+            new[i] = v * CFrame.Angles(0, math.random(-5, 5)/10000, 0)
+        else
+            new[i] = v
+        end
+    end
+    return new
+end
+
+-- ════════════════════════════════════════════════════════════════
+--  SISTEMA DE FIRE AVANÇADO (Múltiplas Variações)
+-- ════════════════════════════════════════════════════════════════
+
+-- Tenta múltiplas combinações de argumentos para descobrir qual funciona
+local function FireWithVariations(remote, targetPlayer)
+    if not remote or not remote.Parent then return false, "Invalid remote" end
+    
+    local variations = {}
+    
+    -- Variação 1: Sem argumentos
+    table.insert(variations, {})
+    
+    -- Variação 2: Apenas LocalPlayer
+    table.insert(variations, {lp})
+    
+    -- Variação 3: Nome do player
+    table.insert(variations, {lp.Name})
+    
+    -- Variação 4: UserId
+    table.insert(variations, {lp.UserId})
+    
+    -- Variação 5: Character
+    if lp.Character then
+        table.insert(variations, {lp.Character})
+        
+        -- Variação 6: Humanoid
+        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            table.insert(variations, {hum})
+        end
+        
+        -- Variação 7: HumanoidRootPart
+        local hrp = lp.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            table.insert(variations, {hrp})
+            table.insert(variations, {hrp.CFrame})
+            table.insert(variations, {hrp.Position})
+        end
+    end
+    
+    -- Variação 8: Player + Character
+    if lp.Character then
+        table.insert(variations, {lp, lp.Character})
+    end
+    
+    -- Variação 9: Booleanos
+    table.insert(variations, {true})
+    table.insert(variations, {false})
+    
+    -- Variação 10: Números comuns
+    table.insert(variations, {1})
+    table.insert(variations, {0})
+    table.insert(variations, {999999})
+    
+    -- Variação 11: Strings comuns
+    table.insert(variations, {"admin"})
+    table.insert(variations, {"all"})
+    table.insert(variations, {"me"})
+    
+    -- Tenta cada variação
+    local lastError = ""
+    for i, args in ipairs(variations) do
+        if not CheckRate(remote) then continue end
+        
+        local spoofed = SpoofArgs(args)
+        local ok, result = pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(unpack(spoofed))
+                return "fired"
+            else
+                return remote:InvokeServer(unpack(spoofed))
+            end
+        end)
+        
+        if ok then
+            Stats.Fired = Stats.Fired + 1
+            Stats.Spoofed = Stats.Spoofed + 1
+            if i > 1 then Stats.Accepted = Stats.Accepted + 1 end
+            return true, "Variação " .. i .. " funcionou", args
+        else
+            lastError = tostring(result)
+            -- Se erro de permissão, para de tentar
+            local errLow = lastError:lower()
+            if string.find(errLow, "permission") or string.find(errLow, "unauthorized") 
+               or string.find(errLow, "devtools") or string.find(errLow, "267") then
+                Stats.Blocked = Stats.Blocked + 1
+                return false, "Bloqueado: " .. lastError
+            end
+        end
+        
+        if Settings.SafeMode then task.wait(0.02) end
+    end
+    
+    Stats.Errors = Stats.Errors + 1
+    return false, "Nenhuma variação funcionou: " .. lastError
+end
+
+local function SafeFire(remote, ...)
+    if not remote or not remote.Parent then return false end
+    if IsForbiddenPath(remote) then Stats.Blocked = Stats.Blocked + 1 return false end
+    if IsBlacklisted(remote.Name) then Stats.Blocked = Stats.Blocked + 1 return false end
+    
+    return FireWithVariations(remote, lp)
+end
+
+local function FirePromptSafe(prompt)
+    if not prompt or not prompt.Parent then return end
+    if IsBlacklisted(prompt.Name) then return end
+    
+    pcall(function()
+        local oldDist = prompt.MaxActivationDistance
+        local oldLOS = prompt.RequiresLineOfSight
+        local oldHold = prompt.HoldDuration
+        
+        prompt.MaxActivationDistance = 999999
+        prompt.RequiresLineOfSight = false
+        prompt.HoldDuration = 0
+        
+        task.wait(0.01)
+        pcall(function() prompt:InputHoldBegin() end)
+        task.wait(0.02)
+        pcall(function() prompt:InputHoldEnd() end)
+        if fireproximityprompt then pcall(function() fireproximityprompt(prompt) end) end
+        
+        task.wait(0.02)
+        prompt.MaxActivationDistance = oldDist
+        prompt.RequiresLineOfSight = oldLOS
+        prompt.HoldDuration = oldHold
+    end)
+    
+    Stats.Fired = Stats.Fired + 1
+    if Settings.SafeMode then task.wait(Settings.Delay) end
+end
+
+local function FireClickSafe(detector)
+    if not detector or not detector.Parent then return end
+    if IsBlacklisted(detector.Name) then return end
+    
+    pcall(function()
+        local old = detector.MaxActivationDistance
+        detector.MaxActivationDistance = 999999
+        task.wait(0.01)
+        if fireclickdetector then pcall(function() fireclickdetector(detector) end) end
+        task.wait(0.02)
+        detector.MaxActivationDistance = old
+    end)
+    
+    Stats.Fired = Stats.Fired + 1
+    if Settings.SafeMode then task.wait(Settings.Delay) end
+end
+
+-- ════════════════════════════════════════════════════════════════
+--  FUNÇÕES DE SPAM
+-- ════════════════════════════════════════════════════════════════
+local function SpamCharacter(char)
+    if not char then return end
+    
+    if Settings.IncludePrompts then
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                task.spawn(function() FirePromptSafe(obj) end)
+            end
+        end
+    end
+    
+    if Settings.IncludeClicks then
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("ClickDetector") then
+                task.spawn(function() FireClickSafe(obj) end)
+            end
+        end
+    end
+    
+    if Settings.IncludeRemotes then
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                task.spawn(function() SafeFire(obj, char) end)
+            end
+        end
+    end
+end
+
+local function SpamAllPlayers()
+    local count = 0
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= lp and plr.Character then
+            count = count + 1
+            task.spawn(function() SpamCharacter(plr.Character) end)
+            if Settings.SafeMode then task.wait(0.05) end
+        end
+    end
+    return count
+end
+
+-- ════════════════════════════════════════════════════════════════
+--  SISTEMA DE RELATÓRIO COMPLETO (IGUAL AO ORIGINAL)
+-- ════════════════════════════════════════════════════════════════
+
+-- Categorias para relatório
+local REPORT_CATEGORIES = {
+    {kw = {"kick", "boot", "disconnect", "exile"}, tag = "KICK", icon = "🦵", desc = "Expulsa jogadores"},
+    {kw = {"ban", "blacklist", "permban"}, tag = "BAN", icon = "🔨", desc = "Bane permanente"},
+    {kw = {"tempban", "tban"}, tag = "TEMPBAN", icon = "⏱️", desc = "Ban temporário"},
+    {kw = {"unban", "pardon"}, tag = "UNBAN", icon = "✅", desc = "Desbane jogador"},
+    {kw = {"mute", "silence", "gag"}, tag = "MUTE", icon = "🔇", desc = "Silencia jogador"},
+    {kw = {"unmute"}, tag = "UNMUTE", icon = "🔊", desc = "Dessilencia jogador"},
+    {kw = {"warn"}, tag = "WARN", icon = "⚠️", desc = "Aviso ao jogador"},
+    {kw = {"jail", "cage", "prison"}, tag = "JAIL", icon = "🏛️", desc = "Prende jogador"},
+    {kw = {"unjail", "free"}, tag = "UNJAIL", icon = "🚪", desc = "Liberta jogador"},
+    {kw = {"freeze", "lock"}, tag = "FREEZE", icon = "🧊", desc = "Paralisa jogador"},
+    {kw = {"unfreeze", "unlock"}, tag = "UNFREEZE", icon = "🔥", desc = "Desparalisa jogador"},
+    {kw = {"god", "godmode", "invincible"}, tag = "GODMODE", icon = "⚡", desc = "Modo deus"},
+    {kw = {"speed", "walkspeed"}, tag = "SPEED", icon = "💨", desc = "Altera velocidade"},
+    {kw = {"jump", "jumppower"}, tag = "JUMP", icon = "🦘", desc = "Altera pulo"},
+    {kw = {"fly", "flight", "noclip"}, tag = "FLY", icon = "🕊️", desc = "Voar/noclip"},
+    {kw = {"heal", "health", "revive"}, tag = "HEAL", icon = "❤️", desc = "Cura jogador"},
+    {kw = {"kill", "damage"}, tag = "KILL", icon = "💀", desc = "Causa dano/morte"},
+    {kw = {"teleport", "tp", "goto", "warp", "bring"}, tag = "TELEPORT", icon = "🌀", desc = "Teleporta jogador"},
+    {kw = {"give", "tool", "equip"}, tag = "GIVE", icon = "🎁", desc = "Dá item/ferramenta"},
+    {kw = {"admin", "promote", "setrank"}, tag = "ADMIN", icon = "👑", desc = "Dá privilégios"},
+    {kw = {"announce", "broadcast", "notify"}, tag = "ANNOUNCE", icon = "📢", desc = "Mensagem global"},
+    {kw = {"shutdown", "restart"}, tag = "SHUTDOWN", icon = "🔄", desc = "Reinicia/fecha servidor"},
+    {kw = {"invisible", "invis", "vanish"}, tag = "INVIS", icon = "👻", desc = "Invisibilidade"},
+    {kw = {"money", "cash", "coins", "currency"}, tag = "MONEY", icon = "💰", desc = "Moeda/dinheiro"},
+    {kw = {"xp", "exp", "level", "points"}, tag = "XP", icon = "⭐", desc = "Experiência/nível"},
+    {kw = {"spawn", "respawn", "character"}, tag = "SPAWN", icon = "🔃", desc = "Respawn/personagem"},
+    {kw = {"buy", "purchase", "shop"}, tag = "SHOP", icon = "🛒", desc = "Compra/loja"},
+    {kw = {"save", "load", "data"}, tag = "DATA", icon = "💾", desc = "Dados do jogador"},
+    {kw = {"click", "press", "trigger", "use"}, tag = "INTERACT", icon = "🖱️", desc = "Interação geral"},
+    {kw = {"open", "close", "toggle"}, tag = "TOGGLE", icon = "🔀", desc = "Ativar/desativar"},
+    {kw = {"fire", "shoot", "attack"}, tag = "ATTACK", icon = "🔫", desc = "Ataque/disparo"}
+}
+
+-- Gera código Lua para um remote
+local function GenerateCode(item)
+    local lines = {}
+    
+    lines[#lines+1] = "-- ══════════════════════════════════════════"
+    lines[#lines+1] = "-- " .. item.icon .. " [" .. item.tag .. "] " .. item.name
+    lines[#lines+1] = "-- Tipo: " .. (item.isFunc and "RemoteFunction" or "RemoteEvent")
+    lines[#lines+1] = "-- Path: " .. item.fullpath
+    lines[#lines+1] = "-- Desc: " .. item.desc
+    lines[#lines+1] = "-- ══════════════════════════════════════════"
+    lines[#lines+1] = ""
+    lines[#lines+1] = 'local re = game:GetService("' .. item.service .. '"):FindFirstChild("' .. item.name .. '", true)'
+    lines[#lines+1] = "if re then"
+    lines[#lines+1] = ""
+    
+    if item.isFunc then
+        lines[#lines+1] = "    -- RemoteFunction - InvokeServer"
+        lines[#lines+1] = "    local ok, result = pcall(function()"
+        lines[#lines+1] = "        return re:InvokeServer()"
+        lines[#lines+1] = "    end)"
+        lines[#lines+1] = '    print("[RF] ' .. item.name .. ':", ok, result)'
+        lines[#lines+1] = ""
+        lines[#lines+1] = "    -- Variações comuns:"
+        lines[#lines+1] = "    -- re:InvokeServer(game.Players.LocalPlayer)"
+        lines[#lines+1] = "    -- re:InvokeServer(game.Players.LocalPlayer.Name)"
+        lines[#lines+1] = "    -- re:InvokeServer(true)"
+    else
+        lines[#lines+1] = "    -- RemoteEvent - FireServer"
+        lines[#lines+1] = "    pcall(function() re:FireServer() end)"
+        lines[#lines+1] = "    pcall(function() re:FireServer(game.Players.LocalPlayer) end)"
+        lines[#lines+1] = "    pcall(function() re:FireServer(game.Players.LocalPlayer.Name) end)"
+        lines[#lines+1] = "    pcall(function() re:FireServer(game.Players.LocalPlayer.UserId) end)"
+        
+        -- Argumentos específicos por categoria
+        if item.tag == "KICK" or item.tag == "BAN" or item.tag == "MUTE" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Para alvo específico:"
+            lines[#lines+1] = '    -- local target = game.Players:FindFirstChild("NomeDoJogador")'
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(target) end)"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(target.Name) end)"
+        elseif item.tag == "SPEED" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com valor de velocidade:"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(100) end)  -- velocidade 100"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(50, true) end)"
+        elseif item.tag == "TELEPORT" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com posição/CFrame:"
+            lines[#lines+1] = "    -- local pos = Vector3.new(0, 50, 0)"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(pos) end)"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(CFrame.new(pos)) end)"
+        elseif item.tag == "MONEY" or item.tag == "XP" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com quantidade:"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(999999) end)"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(999999, true) end)"
+        elseif item.tag == "GIVE" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com nome do item:"
+            lines[#lines+1] = '    -- pcall(function() re:FireServer("ItemName") end)'
+            lines[#lines+1] = '    -- pcall(function() re:FireServer("ItemName", 1) end)'
+        elseif item.tag == "ANNOUNCE" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com mensagem:"
+            lines[#lines+1] = '    -- pcall(function() re:FireServer("Mensagem aqui") end)'
+            lines[#lines+1] = '    -- pcall(function() re:FireServer("Titulo", "Mensagem") end)'
+        elseif item.tag == "HEAL" or item.tag == "KILL" then
+            lines[#lines+1] = ""
+            lines[#lines+1] = "    -- Com valor:"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(100) end)"
+            lines[#lines+1] = "    -- pcall(function() re:FireServer(game.Players.LocalPlayer) end)"
+        end
+    end
+    
+    lines[#lines+1] = ""
+    lines[#lines+1] = "else"
+    lines[#lines+1] = '    print("[ERRO] Remote \'' .. item.name .. '\' não encontrado")'
+    lines[#lines+1] = "end"
+    lines[#lines+1] = ""
+    
+    return table.concat(lines, "\n")
+end
+
+-- Detecta serviço raiz
+local function GetRootService(obj)
+    local cur = obj
+    for _ = 1, 30 do
+        if not cur or not cur.Parent then break end
+        if cur.Parent == game then return cur.Name end
+        cur = cur.Parent
+    end
+    return "Unknown"
+end
+
+-- Varre todos os remotes
+local function ScanAllRemotesForReport()
+    local results = {}
+    local seen = {}
+    
+    local function CheckAndAdd(obj)
+        if seen[obj] then return end
+        if not (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) then return end
+        if IsForbiddenPath(obj) then return end
+        seen[obj] = true
+        
+        local low = obj.Name:lower()
+        local matched_tag, matched_icon, matched_desc = "MISC", "📡", "Remote genérico"
+        
+        for _, cat in ipairs(REPORT_CATEGORIES) do
+            for _, kw in ipairs(cat.kw) do
+                if string.find(low, kw, 1, true) then
+                    matched_tag = cat.tag
+                    matched_icon = cat.icon
+                    matched_desc = cat.desc
+                    break
+                end
+            end
+            if matched_tag ~= "MISC" then break end
+        end
+        
+        local svc = GetRootService(obj)
+        table.insert(results, {
+            name = obj.Name,
+            fullpath = obj:GetFullName(),
+            service = svc,
+            remote = obj,
+            isFunc = obj:IsA("RemoteFunction"),
+            tag = matched_tag,
+            icon = matched_icon,
+            desc = matched_desc
+        })
+    end
+    
+    -- Varre todos os serviços
+    local services = {"ReplicatedStorage", "Workspace", "Players", "Chat", "Teams",
+                      "StarterGui", "StarterPack", "StarterPlayer", "SoundService",
+                      "Lighting", "CoreGui"}
+    
+    for _, svcName in ipairs(services) do
+        pcall(function()
+            local svc = game:GetService(svcName)
+            if svc then
+                for _, d in ipairs(svc:GetDescendants()) do CheckAndAdd(d) end
+            end
+        end)
+    end
+    
+    pcall(function()
+        for _, d in ipairs(lp:WaitForChild("PlayerGui"):GetDescendants()) do CheckAndAdd(d) end
+    end)
+    
+    -- Ordena: tagged primeiro, depois alfabético
+    table.sort(results, function(a, b)
+        local aHasTag = a.tag ~= "MISC"
+        local bHasTag = b.tag ~= "MISC"
+        if aHasTag ~= bHasTag then return aHasTag end
+        return a.name < b.name
+    end)
+    
+    return results
+end
+
+-- Gera relatório completo
+local function GenerateFullReport(items)
+    local lines = {}
+    local now = os.date and os.date("%H:%M:%S") or "??"
+    
+    -- Cabeçalho
+    lines[#lines+1] = "╔══════════════════════════════════════════════════════════════╗"
+    lines[#lines+1] = "║           REMOTE INTELLIGENCE REPORT — V4                    ║"
+    lines[#lines+1] = "║           Delta Executor · Remote Spam V4                    ║"
+    lines[#lines+1] = "╠══════════════════════════════════════════════════════════════╣"
+    lines[#lines+1] = "  Game: " .. tostring(game.Name)
+    lines[#lines+1] = "  PlaceId: " .. tostring(game.PlaceId)
+    lines[#lines+1] = "  Gerado: " .. now
+    lines[#lines+1] = "╚══════════════════════════════════════════════════════════════╝"
+    lines[#lines+1] = ""
+    
+    -- Resumo estatístico
+    local byTag = {}
+    local totalRE, totalRF = 0, 0
+    
+    for _, item in ipairs(items) do
+        byTag[item.tag] = (byTag[item.tag] or 0) + 1
+        if item.isFunc then totalRF = totalRF + 1 else totalRE = totalRE + 1 end
+    end
+    
+    lines[#lines+1] = "═══ RESUMO ═══════════════════════════════════════════════════"
+    lines[#lines+1] = "Total de remotes encontrados: " .. #items
+    lines[#lines+1] = "RemoteEvents:  " .. totalRE
+    lines[#lines+1] = "RemoteFunctions: " .. totalRF
+    lines[#lines+1] = ""
+    lines[#lines+1] = "Por categoria:"
+    
+    -- Ordena categorias por quantidade
+    local sortedTags = {}
+    for tag, count in pairs(byTag) do table.insert(sortedTags, {tag = tag, count = count}) end
+    table.sort(sortedTags, function(a, b) return a.count > b.count end)
+    
+    for _, entry in ipairs(sortedTags) do
+        local icon = "📡"
+        for _, cat in ipairs(REPORT_CATEGORIES) do
+            if cat.tag == entry.tag then icon = cat.icon; break end
+        end
+        lines[#lines+1] = "  " .. icon .. " " .. entry.tag .. ": " .. entry.count
+    end
+    
+    lines[#lines+1] = ""
+    lines[#lines+1] = "═══ LISTA DE REMOTES ENCONTRADOS ═════════════════════════════"
+    lines[#lines+1] = ""
+    
+    -- Lista resumida
+    for _, item in ipairs(items) do
+        local typ = item.isFunc and "[RF]" or "[RE]"
+        lines[#lines+1] = item.icon .. " " .. typ .. " " .. item.name .. " → " .. item.tag
+        lines[#lines+1] = "   Path: " .. item.fullpath
+        lines[#lines+1] = ""
+    end
+    
+    lines[#lines+1] = "═══ CÓDIGOS LUA — TODOS OS REMOTES ═══════════════════════════"
+    lines[#lines+1] = "-- Cole cada bloco no Delta Executor"
+    lines[#lines+1] = ""
+    
+    -- Gera código para cada remote
+    for _, item in ipairs(items) do
+        lines[#lines+1] = GenerateCode(item)
+    end
+    
+    lines[#lines+1] = ""
+    lines[#lines+1] = "-- Fim do relatório — Remote Spam V4"
+    lines[#lines+1] = "-- Gerado por Delta Executor"
+    
+    return table.concat(lines, "\n")
+end
+
+-- ════════════════════════════════════════════════════════════════
+--  VARIÁVEIS GLOBAIS
+-- ════════════════════════════════════════════════════════════════
+local ScannedRemotes = {}
+local AdminRemotes = {}
+local AutoRunning = false
+local LastReport = nil
+
+-- ════════════════════════════════════════════════════════════════
+--  CRIAR GUI COMPLETA
+-- ════════════════════════════════════════════════════════════════
+local function CreateGUI()
+    -- ScreenGuis
+    local MainGui = Instance.new("ScreenGui")
+    MainGui.Name = "RS4_GUI"
+    MainGui.ResetOnSpawn = false
+    MainGui.IgnoreGuiInset = true
+    MainGui.DisplayOrder = 9999
+    MainGui.Parent = pg
+    
+    local NotifGui = Instance.new("ScreenGui")
+    NotifGui.Name = "RS4_Notif"
+    NotifGui.ResetOnSpawn = false
+    NotifGui.IgnoreGuiInset = true
+    NotifGui.DisplayOrder = 10000
+    NotifGui.Parent = pg
+    
+    local ModalGui = Instance.new("ScreenGui")
+    ModalGui.Name = "RS4_Modal"
+    ModalGui.ResetOnSpawn = false
+    ModalGui.IgnoreGuiInset = true
+    ModalGui.DisplayOrder = 10001
+    ModalGui.Enabled = false
+    ModalGui.Parent = pg
+    
+    local ReportGui = Instance.new("ScreenGui")
+    ReportGui.Name = "RS4_Report"
+    ReportGui.ResetOnSpawn = false
+    ReportGui.IgnoreGuiInset = true
+    ReportGui.DisplayOrder = 10002
+    ReportGui.Enabled = false
+    ReportGui.Parent = pg
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  NOTIFICAÇÕES
+    -- ════════════════════════════════════════════════════════════════
+    local NotifStack = {}
+    local function Notify(msg, color, time)
+        color = color or Color3.fromRGB(99, 102, 241)
+        time = time or 2.5
+        
+        local frame = Instance.new("Frame", NotifGui)
+        frame.Size = UDim2.new(0, 280, 0, 50)
+        frame.Position = UDim2.new(1, 20, 1, -70)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+        frame.BorderSizePixel = 0
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+        
+        local stroke = Instance.new("UIStroke", frame)
+        stroke.Color = color
+        stroke.Thickness = 1.5
+        stroke.Transparency = 0.3
+        
+        local bar = Instance.new("Frame", frame)
+        bar.Size = UDim2.new(0, 4, 1, -10)
+        bar.Position = UDim2.new(0, 6, 0, 5)
+        bar.BackgroundColor3 = color
+        bar.BorderSizePixel = 0
+        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+        
+        local text = Instance.new("TextLabel", frame)
+        text.Size = UDim2.new(1, -20, 1, 0)
+        text.Position = UDim2.new(0, 16, 0, 0)
+        text.BackgroundTransparency = 1
+        text.Text = msg
+        text.TextColor3 = Color3.fromRGB(235, 235, 245)
+        text.Font = Enum.Font.GothamBold
+        text.TextSize = 11
+        text.TextXAlignment = Enum.TextXAlignment.Left
+        text.TextWrapped = true
+        
+        table.insert(NotifStack, 1, frame)
+        for i, nf in ipairs(NotifStack) do
+            TweenService:Create(nf, TweenInfo.new(0.2), {
+                Position = UDim2.new(1, -290, 1, -70 - (i-1) * 60)
+            }):Play()
+        end
+        
+        task.delay(time, function()
+            for i, nf in ipairs(NotifStack) do if nf == frame then table.remove(NotifStack, i) break end end
+            TweenService:Create(frame, TweenInfo.new(0.15), {Position = UDim2.new(1, 20, 1, -70)}):Play()
+            task.delay(0.2, function() pcall(function() frame:Destroy() end) end)
+            for i, nf in ipairs(NotifStack) do
+                TweenService:Create(nf, TweenInfo.new(0.15), {
+                    Position = UDim2.new(1, -290, 1, -70 - (i-1) * 60)
+                }):Play()
+            end
+        end)
+    end
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  MODAL DE REMOTES (Lista)
+    -- ════════════════════════════════════════════════════════════════
+    local ModalFrame = Instance.new("Frame", ModalGui)
+    ModalFrame.Size = UDim2.new(1, 0, 1, 0)
+    ModalFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    ModalFrame.BackgroundTransparency = 0.5
+    ModalFrame.BorderSizePixel = 0
+    
+    local ModalPanel = Instance.new("Frame", ModalFrame)
+    ModalPanel.Size = UDim2.new(0, 360, 0, 480)
+    ModalPanel.Position = UDim2.new(0.5, -180, 0.5, -240)
+    ModalPanel.BackgroundColor3 = Color3.fromRGB(13, 13, 20)
+    ModalPanel.BorderSizePixel = 0
+    Instance.new("UICorner", ModalPanel).CornerRadius = UDim.new(0, 14)
+    
+    local modalStroke = Instance.new("UIStroke", ModalPanel)
+    modalStroke.Color = Color3.fromRGB(99, 102, 241)
+    modalStroke.Thickness = 2
+    
+    local ModalHeader = Instance.new("Frame", ModalPanel)
+    ModalHeader.Size = UDim2.new(1, 0, 0, 50)
+    ModalHeader.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    ModalHeader.BorderSizePixel = 0
+    Instance.new("UICorner", ModalHeader).CornerRadius = UDim.new(0, 14)
+    
+    local headerFix = Instance.new("Frame", ModalHeader)
+    headerFix.Size = UDim2.new(1, 0, 0, 15)
+    headerFix.Position = UDim2.new(0, 0, 1, -15)
+    headerFix.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    headerFix.BorderSizePixel = 0
+    
+    local ModalTitle = Instance.new("TextLabel", ModalHeader)
+    ModalTitle.Size = UDim2.new(1, -60, 1, 0)
+    ModalTitle.Position = UDim2.new(0, 15, 0, 0)
+    ModalTitle.BackgroundTransparency = 1
+    ModalTitle.Text = "📡 Remotes Encontrados"
+    ModalTitle.TextColor3 = Color3.fromRGB(99, 102, 241)
+    ModalTitle.Font = Enum.Font.GothamBold
+    ModalTitle.TextSize = 14
+    ModalTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local CloseModal = Instance.new("TextButton", ModalHeader)
+    CloseModal.Size = UDim2.new(0, 35, 0, 35)
+    CloseModal.Position = UDim2.new(1, -45, 0.5, -17.5)
+    CloseModal.BackgroundColor3 = Color3.fromRGB(220, 55, 55)
+    CloseModal.Text = "✕"
+    CloseModal.TextColor3 = Color3.new(1, 1, 1)
+    CloseModal.Font = Enum.Font.GothamBold
+    CloseModal.TextSize = 14
+    CloseModal.BorderSizePixel = 0
+    Instance.new("UICorner", CloseModal).CornerRadius = UDim.new(0, 8)
+    CloseModal.Activated:Connect(function() ModalGui.Enabled = false end)
+    
+    local CounterLabel = Instance.new("TextLabel", ModalHeader)
+    CounterLabel.Size = UDim2.new(0, 120, 0, 20)
+    CounterLabel.Position = UDim2.new(0, 15, 1, -25)
+    CounterLabel.BackgroundTransparency = 1
+    CounterLabel.Text = "0 remotes"
+    CounterLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
+    CounterLabel.Font = Enum.Font.Gotham
+    CounterLabel.TextSize = 10
+    CounterLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ListScroll = Instance.new("ScrollingFrame", ModalPanel)
+    ListScroll.Size = UDim2.new(1, -20, 1, -110)
+    ListScroll.Position = UDim2.new(0, 10, 0, 60)
+    ListScroll.BackgroundTransparency = 1
+    ListScroll.BorderSizePixel = 0
+    ListScroll.ScrollBarThickness = 6
+    ListScroll.ScrollBarImageColor3 = Color3.fromRGB(99, 102, 241)
+    ListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    
+    local ListLayout = Instance.new("UIListLayout", ListScroll)
+    ListLayout.Padding = UDim.new(0, 8)
+    ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local FireAllBtn = Instance.new("TextButton", ModalPanel)
+    FireAllBtn.Size = UDim2.new(1, -20, 0, 40)
+    FireAllBtn.Position = UDim2.new(0, 10, 1, -50)
+    FireAllBtn.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+    FireAllBtn.Text = "🚀 FIRE TODOS OS REMOTES"
+    FireAllBtn.TextColor3 = Color3.new(1, 1, 1)
+    FireAllBtn.Font = Enum.Font.GothamBold
+    FireAllBtn.TextSize = 13
+    FireAllBtn.BorderSizePixel = 0
+    Instance.new("UICorner", FireAllBtn).CornerRadius = UDim.new(0, 10)
+    
+    -- Função atualizar lista
+    local function UpdateRemoteList(remotesList, isAdmin)
+        for _, child in ipairs(ListScroll:GetChildren()) do if child:IsA("Frame") then child:Destroy() end end
+        
+        CounterLabel.Text = #remotesList .. " remotes"
+        
+        for i, remoteData in ipairs(remotesList) do
+            local card = Instance.new("Frame", ListScroll)
+            card.Size = UDim2.new(1, -10, 0, 75)
+            card.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+            card.BorderSizePixel = 0
+            card.LayoutOrder = i
+            Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+            
+            local cardColor = remoteData.Color or (remoteData.Safe and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(239, 68, 68))
+            
+            local stroke = Instance.new("UIStroke", card)
+            stroke.Color = cardColor
+            stroke.Thickness = 1.5
+            stroke.Transparency = 0.4
+            
+            local icon = Instance.new("TextLabel", card)
+            icon.Size = UDim2.new(0, 30, 0, 25)
+            icon.Position = UDim2.new(0, 10, 0, 8)
+            icon.BackgroundTransparency = 1
+            icon.Text = remoteData.Type == "RF" and "⚙️" or "📡"
+            icon.TextColor3 = cardColor
+            icon.Font = Enum.Font.GothamBold
+            icon.TextSize = 16
+            
+            local nameLabel = Instance.new("TextLabel", card)
+            nameLabel.Size = UDim2.new(1, -50, 0, 25)
+            nameLabel.Position = UDim2.new(0, 40, 0, 8)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Text = remoteData.Label or remoteData.Name
+            nameLabel.TextColor3 = Color3.fromRGB(235, 235, 245)
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextSize = 12
+            nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            
+            local pathLabel = Instance.new("TextLabel", card)
+            pathLabel.Size = UDim2.new(1, -90, 0, 15)
+            pathLabel.Position = UDim2.new(0, 10, 0, 35)
+            pathLabel.BackgroundTransparency = 1
+            pathLabel.Text = remoteData.Path or remoteData.Location or "Unknown"
+            pathLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
+            pathLabel.Font = Enum.Font.Gotham
+            pathLabel.TextSize = 9
+            pathLabel.TextXAlignment = Enum.TextXAlignment.Left
+            pathLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            
+            -- Status label
+            local statusLabel = Instance.new("TextLabel", card)
+            statusLabel.Size = UDim2.new(0, 70, 0, 15)
+            statusLabel.Position = UDim2.new(1, -80, 0, 35)
+            statusLabel.BackgroundTransparency = 1
+            statusLabel.Text = "⏳ Pronto"
+            statusLabel.TextColor3 = Color3.fromRGB(130, 130, 160)
+            statusLabel.Font = Enum.Font.GothamBold
+            statusLabel.TextSize = 9
+            statusLabel.TextXAlignment = Enum.TextXAlignment.Right
+            
+            local fireBtn = Instance.new("TextButton", card)
+            fireBtn.Size = UDim2.new(0, 70, 0, 30)
+            fireBtn.Position = UDim2.new(1, -80, 0.5, 5)
+            fireBtn.BackgroundColor3 = cardColor
+            fireBtn.Text = "▶ FIRE"
+            fireBtn.TextColor3 = Color3.new(1, 1, 1)
+            fireBtn.Font = Enum.Font.GothamBold
+            fireBtn.TextSize = 10
+            fireBtn.BorderSizePixel = 0
+            Instance.new("UICorner", fireBtn).CornerRadius = UDim.new(0, 8)
+            
+            local remoteObj = remoteData.Object or remoteData.Remote
+            fireBtn.Activated:Connect(function()
+                if remoteObj then
+                    fireBtn.Text = "⏳..."
+                    fireBtn.BackgroundColor3 = Color3.fromRGB(130, 130, 160)
+                    
+                    task.spawn(function()
+                        local success, msg, argsUsed = FireWithVariations(remoteObj, lp)
+                        
+                        if success then
+                            fireBtn.Text = "✅ OK"
+                            fireBtn.BackgroundColor3 = Color3.fromRGB(52, 211, 153)
+                            statusLabel.Text = "✅ " .. (argsUsed and "Args" or "OK")
+                            statusLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
+                            Notify("✅ " .. (remoteData.Name or "Remote") .. " funcionou!", Color3.fromRGB(52, 211, 153))
+                        else
+                            fireBtn.Text = "❌ FAIL"
+                            fireBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                            statusLabel.Text = "❌ Erro"
+                            statusLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+                        end
+                        
+                        task.wait(2)
+                        fireBtn.Text = "▶ FIRE"
+                        fireBtn.BackgroundColor3 = cardColor
+                    end)
+                end
+            end)
+        end
+        
+        ListScroll.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y + 20)
+    end
+    
+    FireAllBtn.Activated:Connect(function()
+        local currentList = ScannedRemotes
+        if #currentList == 0 then Notify("⚠️ Nenhum remote na lista!", Color3.fromRGB(251, 191, 36)) return end
+        
+        Notify("🚀 Iniciando Fire All...", Color3.fromRGB(99, 102, 241))
+        
+        task.spawn(function()
+            local fired = 0
+            for _, remoteData in ipairs(currentList) do
+                local obj = remoteData.Object or remoteData.Remote
+                if obj then
+                    task.spawn(function()
+                        local success = FireWithVariations(obj, lp)
+                        if success then fired = fired + 1 end
+                    end)
+                    task.wait(0.05)
+                end
+            end
+            
+            task.wait(1)
+            Notify("✅ Fire All: " .. fired .. "/" .. #currentList .. " funcionaram", Color3.fromRGB(52, 211, 153))
+        end)
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  MODAL DE RELATÓRIO
+    -- ════════════════════════════════════════════════════════════════
+    local ReportFrame = Instance.new("Frame", ReportGui)
+    ReportFrame.Size = UDim2.new(1, 0, 1, 0)
+    ReportFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    ReportFrame.BackgroundTransparency = 0.6
+    ReportFrame.BorderSizePixel = 0
+    
+    local ReportPanel = Instance.new("Frame", ReportFrame)
+    ReportPanel.Size = UDim2.new(0, 400, 0, 500)
+    ReportPanel.Position = UDim2.new(0.5, -200, 0.5, -250)
+    ReportPanel.BackgroundColor3 = Color3.fromRGB(13, 13, 20)
+    ReportPanel.BorderSizePixel = 0
+    Instance.new("UICorner", ReportPanel).CornerRadius = UDim.new(0, 14)
+    
+    local reportStroke = Instance.new("UIStroke", ReportPanel)
+    reportStroke.Color = Color3.fromRGB(251, 191, 36)
+    reportStroke.Thickness = 2
+    
+    local ReportHeader = Instance.new("Frame", ReportPanel)
+    ReportHeader.Size = UDim2.new(1, 0, 0, 50)
+    ReportHeader.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    ReportHeader.BorderSizePixel = 0
+    Instance.new("UICorner", ReportHeader).CornerRadius = UDim.new(0, 14)
+    
+    local reportHeaderFix = Instance.new("Frame", ReportHeader)
+    reportHeaderFix.Size = UDim2.new(1, 0, 0, 15)
+    reportHeaderFix.Position = UDim2.new(0, 0, 1, -15)
+    reportHeaderFix.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    reportHeaderFix.BorderSizePixel = 0
+    
+    local ReportTitle = Instance.new("TextLabel", ReportHeader)
+    ReportTitle.Size = UDim2.new(1, -60, 1, 0)
+    ReportTitle.Position = UDim2.new(0, 15, 0, 0)
+    ReportTitle.BackgroundTransparency = 1
+    ReportTitle.Text = "📊 Relatório Completo"
+    ReportTitle.TextColor3 = Color3.fromRGB(251, 191, 36)
+    ReportTitle.Font = Enum.Font.GothamBold
+    ReportTitle.TextSize = 16
+    ReportTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local CloseReport = Instance.new("TextButton", ReportHeader)
+    CloseReport.Size = UDim2.new(0, 35, 0, 35)
+    CloseReport.Position = UDim2.new(1, -45, 0.5, -17.5)
+    CloseReport.BackgroundColor3 = Color3.fromRGB(220, 55, 55)
+    CloseReport.Text = "✕"
+    CloseReport.TextColor3 = Color3.new(1, 1, 1)
+    CloseReport.Font = Enum.Font.GothamBold
+    CloseReport.TextSize = 14
+    CloseReport.BorderSizePixel = 0
+    Instance.new("UICorner", CloseReport).CornerRadius = UDim.new(0, 8)
+    CloseReport.Activated:Connect(function() ReportGui.Enabled = false end)
+    
+    -- Área de texto do relatório
+    local ReportScroll = Instance.new("ScrollingFrame", ReportPanel)
+    ReportScroll.Size = UDim2.new(1, -20, 1, -120)
+    ReportScroll.Position = UDim2.new(0, 10, 0, 60)
+    ReportScroll.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    ReportScroll.BorderSizePixel = 0
+    ReportScroll.ScrollBarThickness = 6
+    ReportScroll.ScrollBarImageColor3 = Color3.fromRGB(251, 191, 36)
+    ReportScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Instance.new("UICorner", ReportScroll).CornerRadius = UDim.new(0, 10)
+    
+    local ReportText = Instance.new("TextLabel", ReportScroll)
+    ReportText.Size = UDim2.new(1, -20, 0, 0)
+    ReportText.Position = UDim2.new(0, 10, 0, 10)
+    ReportText.BackgroundTransparency = 1
+    ReportText.Text = "Gere um relatório para ver o conteúdo..."
+    ReportText.TextColor3 = Color3.fromRGB(235, 235, 245)
+    ReportText.Font = Enum.Font.Code
+    ReportText.TextSize = 10
+    ReportText.TextXAlignment = Enum.TextXAlignment.Left
+    ReportText.TextYAlignment = Enum.TextYAlignment.Top
+    ReportText.TextWrapped = true
+    ReportText.AutomaticSize = Enum.AutomaticSize.Y
+    
+    -- Botões do relatório
+    local CopyReportBtn = Instance.new("TextButton", ReportPanel)
+    CopyReportBtn.Size = UDim2.new(0.48, 0, 0, 45)
+    CopyReportBtn.Position = UDim2.new(0, 10, 1, -55)
+    CopyReportBtn.BackgroundColor3 = Color3.fromRGB(251, 191, 36)
+    CopyReportBtn.Text = "📋 COPIAR RELATÓRIO"
+    CopyReportBtn.TextColor3 = Color3.fromRGB(10, 10, 10)
+    CopyReportBtn.Font = Enum.Font.GothamBold
+    CopyReportBtn.TextSize = 12
+    CopyReportBtn.BorderSizePixel = 0
+    Instance.new("UICorner", CopyReportBtn).CornerRadius = UDim.new(0, 10)
+    
+    local SaveReportBtn = Instance.new("TextButton", ReportPanel)
+    SaveReportBtn.Size = UDim2.new(0.48, 0, 0, 45)
+    SaveReportBtn.Position = UDim2.new(0.52, 0, 1, -55)
+    SaveReportBtn.BackgroundColor3 = Color3.fromRGB(52, 211, 153)
+    SaveReportBtn.Text = "💾 SALVAR EM ARQUIVO"
+    SaveReportBtn.TextColor3 = Color3.fromRGB(10, 10, 10)
+    SaveReportBtn.Font = Enum.Font.GothamBold
+    SaveReportBtn.TextSize = 12
+    SaveReportBtn.BorderSizePixel = 0
+    Instance.new("UICorner", SaveReportBtn).CornerRadius = UDim.new(0, 10)
+    
+    CopyReportBtn.Activated:Connect(function()
+        if LastReport then
+            local ok = pcall(function() setclipboard(LastReport) end)
+            if not ok then pcall(function() toclipboard(LastReport) end) end
+            CopyReportBtn.Text = "✅ COPIADO!"
+            task.delay(2, function() CopyReportBtn.Text = "📋 COPIAR RELATÓRIO" end)
+            Notify("📋 Relatório copiado!", Color3.fromRGB(52, 211, 153))
+        else
+            Notify("⚠️ Gere um relatório primeiro!", Color3.fromRGB(251, 191, 36))
+        end
+    end)
+    
+    SaveReportBtn.Activated:Connect(function()
+        if LastReport then
+            Notify("💾 Relatório salvo (simulado)", Color3.fromRGB(52, 211, 153))
+        else
+            Notify("⚠️ Gere um relatório primeiro!", Color3.fromRGB(251, 191, 36))
+        end
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  JANELA PRINCIPAL
+    -- ════════════════════════════════════════════════════════════════
+    local W, H = 320, 480
+    
+    local Shadow = Instance.new("Frame", MainGui)
+    Shadow.Size = UDim2.new(0, W + 20, 0, H + 20)
+    Shadow.Position = UDim2.new(0.5, -(W+20)/2, 0.5, -(H+20)/2)
+    Shadow.BackgroundColor3 = Color3.new(0, 0, 0)
+    Shadow.BackgroundTransparency = 0.6
+    Shadow.BorderSizePixel = 0
+    Instance.new("UICorner", Shadow).CornerRadius = UDim.new(0, 16)
+    
+    local Win = Instance.new("Frame", MainGui)
+    Win.Name = "MainWindow"
+    Win.Size = UDim2.new(0, W, 0, H)
+    Win.Position = UDim2.new(0.5, -W/2, 0.5, -H/2)
+    Win.BackgroundColor3 = Color3.fromRGB(13, 13, 20)
+    Win.BorderSizePixel = 0
+    Win.ClipsDescendants = true
+    Instance.new("UICorner", Win).CornerRadius = UDim.new(0, 14)
+    
+    local WinStroke = Instance.new("UIStroke", Win)
+    WinStroke.Color = Color3.fromRGB(99, 102, 241)
+    WinStroke.Thickness = 1.5
+    WinStroke.Transparency = 0.3
+    
+    RunService.RenderStepped:Connect(function()
+        Shadow.Position = UDim2.new(Win.Position.X.Scale, Win.Position.X.Offset - 10, Win.Position.Y.Scale, Win.Position.Y.Offset - 10)
+        Shadow.Visible = Win.Visible
+    end)
+    
+    -- Topbar
+    local Topbar = Instance.new("Frame", Win)
+    Topbar.Size = UDim2.new(1, 0, 0, 50)
+    Topbar.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    Topbar.BorderSizePixel = 0
+    Instance.new("UICorner", Topbar).CornerRadius = UDim.new(0, 14)
+    
+    local TopFix = Instance.new("Frame", Topbar)
+    TopFix.Size = UDim2.new(1, 0, 0, 15)
+    TopFix.Position = UDim2.new(0, 0, 1, -15)
+    TopFix.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    TopFix.BorderSizePixel = 0
+    
+    local AccentLine = Instance.new("Frame", Topbar)
+    AccentLine.Size = UDim2.new(1, 0, 0, 2)
+    AccentLine.Position = UDim2.new(0, 0, 1, -2)
+    AccentLine.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+    AccentLine.BorderSizePixel = 0
+    
+    local Icon = Instance.new("TextLabel", Topbar)
+    Icon.Size = UDim2.new(0, 40, 0, 50)
+    Icon.Position = UDim2.new(0, 12, 0, 0)
+    Icon.BackgroundTransparency = 1
+    Icon.Text = "📡"
+    Icon.TextSize = 22
+    Icon.Font = Enum.Font.GothamBold
+    Icon.TextColor3 = Color3.fromRGB(99, 102, 241)
+    
+    local Title = Instance.new("TextLabel", Topbar)
+    Title.Size = UDim2.new(1, -100, 0, 28)
+    Title.Position = UDim2.new(0, 55, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Text = "Remote Spam V4"
+    Title.TextColor3 = Color3.fromRGB(235, 235, 245)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 15
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local Subtitle = Instance.new("TextLabel", Topbar)
+    Subtitle.Size = UDim2.new(1, -100, 0, 15)
+    Subtitle.Position = UDim2.new(0, 55, 0, 30)
+    Subtitle.BackgroundTransparency = 1
+    Subtitle.Text = "Delta Mobile · Relatório + Fire Avançado"
+    Subtitle.TextColor3 = Color3.fromRGB(130, 130, 160)
+    Subtitle.Font = Enum.Font.Gotham
+    Subtitle.TextSize = 10
+    Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local function MakeTopBtn(text, x, color)
+        local btn = Instance.new("TextButton", Topbar)
+        btn.Size = UDim2.new(0, 32, 0, 32)
+        btn.Position = UDim2.new(1, x, 0.5, -16)
+        btn.BackgroundColor3 = color
+        btn.Text = text
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 12
+        btn.BorderSizePixel = 0
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        return btn
+    end
+    
+    local CloseBtn = MakeTopBtn("✕", -42, Color3.fromRGB(220, 55, 55))
+    local MiniBtn = MakeTopBtn("−", -80, Color3.fromRGB(42, 42, 62))
+    
+    -- Arrastar
+    local Dragging, DragStart, StartPos
+    Topbar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = true
+            DragStart = input.Position
+            StartPos = Win.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if Dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = input.Position - DragStart
+            Win.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = false
+        end
+    end)
+    
+    local Minimized = false
+    MiniBtn.Activated:Connect(function()
+        Minimized = not Minimized
+        TweenService:Create(Win, TweenInfo.new(0.2), {
+            Size = Minimized and UDim2.new(0, W, 0, 50) or UDim2.new(0, W, 0, H)
+        }):Play()
+        MiniBtn.Text = Minimized and "+" or "−"
+    end)
+    
+    CloseBtn.Activated:Connect(function()
+        Win.Visible = false
+        Shadow.Visible = false
+    end)
+    
+    -- Conteúdo com abas
+    local Content = Instance.new("Frame", Win)
+    Content.Size = UDim2.new(1, 0, 1, -50)
+    Content.Position = UDim2.new(0, 0, 0, 50)
+    Content.BackgroundTransparency = 1
+    
+    local TabButtons = Instance.new("Frame", Content)
+    TabButtons.Size = UDim2.new(1, 0, 0, 45)
+    TabButtons.BackgroundColor3 = Color3.fromRGB(16, 16, 25)
+    TabButtons.BorderSizePixel = 0
+    
+    local TabContent = Instance.new("Frame", Content)
+    TabContent.Size = UDim2.new(1, 0, 1, -45)
+    TabContent.Position = UDim2.new(0, 0, 0, 45)
+    TabContent.BackgroundTransparency = 1
+    
+    local Tabs = {}
+    local CurrentTab = 1
+    
+    local function CreateTab(icon, name, index)
+        local btn = Instance.new("TextButton", TabButtons)
+        btn.Size = UDim2.new(0.2, 0, 1, 0)
+        btn.Position = UDim2.new((index-1) * 0.2, 0, 0, 0)
+        btn.BackgroundColor3 = index == 1 and Color3.fromRGB(99, 102, 241) or Color3.fromRGB(16, 16, 25)
+        btn.Text = ""
+        btn.BorderSizePixel = 0
+        
+        local iconLabel = Instance.new("TextLabel", btn)
+        iconLabel.Size = UDim2.new(1, 0, 0, 20)
+        iconLabel.Position = UDim2.new(0, 0, 0, 5)
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.Text = icon
+        iconLabel.TextSize = 14
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.TextColor3 = index == 1 and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 160)
+        
+        local nameLabel = Instance.new("TextLabel", btn)
+        nameLabel.Size = UDim2.new(1, 0, 0, 12)
+        nameLabel.Position = UDim2.new(0, 0, 1, -17)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = name
+        nameLabel.TextSize = 8
+        nameLabel.Font = Enum.Font.Gotham
+        nameLabel.TextColor3 = index == 1 and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 160)
+        
+        local page = Instance.new("ScrollingFrame", TabContent)
+        page.Size = UDim2.new(1, 0, 1, 0)
+        page.BackgroundTransparency = 1
+        page.BorderSizePixel = 0
+        page.ScrollBarThickness = 4
+        page.ScrollBarImageColor3 = Color3.fromRGB(99, 102, 241)
+        page.CanvasSize = UDim2.new(0, 0, 0, 0)
+        page.Visible = index == 1
+        
+        local layout = Instance.new("UIListLayout", page)
+        layout.Padding = UDim.new(0, 8)
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        local padding = Instance.new("UIPadding", page)
+        padding.PaddingLeft = UDim.new(0, 10)
+        padding.PaddingRight = UDim.new(0, 10)
+        padding.PaddingTop = UDim.new(0, 10)
+        padding.PaddingBottom = UDim.new(0, 10)
+        
+        local function UpdateCanvas()
+            page.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
+        end
+        
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateCanvas)
+        
+        btn.Activated:Connect(function()
+            CurrentTab = index
+            for i, tab in ipairs(Tabs) do
+                tab.Button.BackgroundColor3 = i == index and Color3.fromRGB(99, 102, 241) or Color3.fromRGB(16, 16, 25)
+                tab.Icon.TextColor3 = i == index and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 160)
+                tab.Name.TextColor3 = i == index and Color3.new(1, 1, 1) or Color3.fromRGB(130, 130, 160)
+                tab.Page.Visible = i == index
+            end
+        end)
+        
+        table.insert(Tabs, {Button = btn, Icon = iconLabel, Name = nameLabel, Page = page, UpdateCanvas = UpdateCanvas})
+        return page, UpdateCanvas
+    end
+    
+    local SpamPage, UpdateSpam = CreateTab("⚡", "Spam", 1)
+    local AutoPage, UpdateAuto = CreateTab("🤖", "Auto", 2)
+    local ScanPage, UpdateScan = CreateTab("🔍", "Scan", 3)
+    local ReportTab, UpdateReportTab = CreateTab("📊", "Relatório", 4)
+    local ConfigPage, UpdateConfig = CreateTab("⚙️", "Config", 5)
+    
+    -- Helpers UI
+    local function MakeSection(parent, text)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, 0, 0, 30)
+        frame.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+        frame.BorderSizePixel = 0
+        frame.LayoutOrder = #parent:GetChildren()
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+        
+        local label = Instance.new("TextLabel", frame)
+        label.Size = UDim2.new(1, -10, 1, 0)
+        label.Position = UDim2.new(0, 10, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.fromRGB(99, 102, 241)
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        return frame
+    end
+    
+    local function MakeButton(parent, icon, text, desc, color, callback)
+        local btn = Instance.new("TextButton", parent)
+        btn.Size = UDim2.new(1, 0, 0, desc and 60 or 45)
+        btn.BackgroundColor3 = color or Color3.fromRGB(25, 25, 38)
+        btn.Text = ""
+        btn.BorderSizePixel = 0
+        btn.LayoutOrder = #parent:GetChildren()
+        btn.AutoButtonColor = false
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+        
+        local main = Instance.new("TextLabel", btn)
+        main.Size = UDim2.new(1, -15, 0, desc and 25 or 45)
+        main.Position = UDim2.new(0, 12, 0, desc and 6 or 0)
+        main.BackgroundTransparency = 1
+        main.Text = (icon and icon .. " " or "") .. text
+        main.TextColor3 = Color3.fromRGB(235, 235, 245)
+        main.Font = Enum.Font.GothamBold
+        main.TextSize = 12
+        main.TextXAlignment = Enum.TextXAlignment.Left
+        
+        if desc then
+            local sub = Instance.new("TextLabel", btn)
+            sub.Size = UDim2.new(1, -15, 0, 18)
+            sub.Position = UDim2.new(0, 12, 0, 32)
+            sub.BackgroundTransparency = 1
+            sub.Text = desc
+            sub.TextColor3 = Color3.fromRGB(130, 130, 160)
+            sub.Font = Enum.Font.Gotham
+            sub.TextSize = 10
+            sub.TextXAlignment = Enum.TextXAlignment.Left
+        end
+        
+        btn.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+                TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 40, 60)}):Play()
+            end
+        end)
+        
+        btn.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+                TweenService:Create(btn, TweenInfo.new(0.1), {BackgroundColor3 = color or Color3.fromRGB(25, 25, 38)}):Play()
+            end
+        end)
+        
+        btn.Activated:Connect(callback)
+        return btn
+    end
+    
+    local function MakeToggle(parent, text, default, callback)
+        local frame = Instance.new("Frame", parent)
+        frame.Size = UDim2.new(1, 0, 0, 50)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+        frame.BorderSizePixel = 0
+        frame.LayoutOrder = #parent:GetChildren()
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+        
+        local label = Instance.new("TextLabel", frame)
+        label.Size = UDim2.new(1, -70, 1, 0)
+        label.Position = UDim2.new(0, 12, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = text
+        label.TextColor3 = Color3.fromRGB(235, 235, 245)
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.TextWrapped = true
+        
+        local track = Instance.new("TextButton", frame)
+        track.Size = UDim2.new(0, 50, 0, 26)
+        track.Position = UDim2.new(1, -60, 0.5, -13)
+        track.BackgroundColor3 = default and Color3.fromRGB(99, 102, 241) or Color3.fromRGB(42, 42, 62)
+        track.Text = ""
+        track.BorderSizePixel = 0
+        Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+        
+        local knob = Instance.new("Frame", track)
+        knob.Size = UDim2.new(0, 20, 0, 20)
+        knob.Position = default and UDim2.new(1, -24, 0.5, -10) or UDim2.new(0, 4, 0.5, -10)
+        knob.BackgroundColor3 = Color3.new(1, 1, 1)
+        knob.BorderSizePixel = 0
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+        
+        local state = default
+        track.Activated:Connect(function()
+            state = not state
+            TweenService:Create(track, TweenInfo.new(0.15), {
+                BackgroundColor3 = state and Color3.fromRGB(99, 102, 241) or Color3.fromRGB(42, 42, 62)
+            }):Play()
+            TweenService:Create(knob, TweenInfo.new(0.15), {
+                Position = state and UDim2.new(1, -24, 0.5, -10) or UDim2.new(0, 4, 0.5, -10)
+            }):Play()
+            callback(state)
+        end)
+        return frame
+    end
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  ABA 1: SPAM
+    -- ════════════════════════════════════════════════════════════════
+    MakeSection(SpamPage, "⚡ DISPARO RÁPIDO")
+    
+    MakeButton(SpamPage, "🚀", "SPAM TUDO AGORA", "Prompts + Clicks + Remotes", Color3.fromRGB(99, 102, 241), function()
+        local n = SpamAllPlayers()
+        Notify("🚀 Spam: " .. n .. " players", Color3.fromRGB(99, 102, 241))
+    end)
+    
+    MakeButton(SpamPage, "🔑", "Só ProximityPrompts", nil, Color3.fromRGB(34, 211, 238), function()
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= lp and plr.Character then
+                for _, obj in ipairs(plr.Character:GetDescendants()) do
+                    if obj:IsA("ProximityPrompt") then task.spawn(function() FirePromptSafe(obj) end) end
+                end
+            end
+        end
+        Notify("🔑 Prompts disparados!", Color3.fromRGB(34, 211, 238))
+    end)
+    
+    MakeButton(SpamPage, "📡", "Só Remotes", nil, Color3.fromRGB(139, 92, 246), function()
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= lp and plr.Character then
+                for _, obj in ipairs(plr.Character:GetDescendants()) do
+                    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                        task.spawn(function() SafeFire(obj, plr.Character) end)
+                    end
+                end
+            end
+        end
+        Notify("📡 Remotes disparados!", Color3.fromRGB(139, 92, 246))
+    end)
+    
+    MakeButton(SpamPage, "🌍", "Spam Workspace", "Todos os objetos do mapa", Color3.fromRGB(52, 211, 153), function()
+        local n = 0
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then n = n + 1; task.spawn(function() FirePromptSafe(obj) end)
+            elseif obj:IsA("ClickDetector") then n = n + 1; task.spawn(function() FireClickSafe(obj) end) end
+        end
+        Notify("🌍 Workspace: " .. n .. " objetos", Color3.fromRGB(52, 211, 153))
+    end)
+    
+    MakeButton(SpamPage, "🔁", "SPAM x5 RÁPIDO", "Dispara tudo 5x seguido", Color3.fromRGB(180, 50, 50), function()
+        for i = 1, 5 do SpamAllPlayers(); task.wait(0.1) end
+        Notify("✅ x5 Concluído!", Color3.fromRGB(52, 211, 153))
+    end)
+    
+    MakeSection(SpamPage, "📊 ESTATÍSTICAS")
+    local StatsLabel = Instance.new("TextLabel", SpamPage)
+    StatsLabel.Size = UDim2.new(1, 0, 0, 35)
+    StatsLabel.BackgroundColor3 = Color3.fromRGB(19, 19, 29)
+    StatsLabel.Text = "✅ Fires: 0 | 🛡️ Bloq: 0 | 🎭 Spoof: 0 | ✅ Aceitos: 0"
+    StatsLabel.TextColor3 = Color3.fromRGB(52, 211, 153)
+    StatsLabel.Font = Enum.Font.GothamBold
+    StatsLabel.TextSize = 10
+    StatsLabel.LayoutOrder = #SpamPage:GetChildren()
+    Instance.new("UICorner", StatsLabel).CornerRadius = UDim.new(0, 8)
+    
+    task.spawn(function()
+        while task.wait(1) do
+            pcall(function()
+                StatsLabel.Text = string.format("✅ Fires: %d | 🛡️ Bloq: %d | 🎭 Spoof: %d | ✅ Aceitos: %d",
+                    Stats.Fired, Stats.Blocked, Stats.Spoofed, Stats.Accepted)
+            end)
+        end
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  ABA 2: AUTO
+    -- ════════════════════════════════════════════════════════════════
+    MakeSection(AutoPage, "🤖 AUTO SPAM")
+    
+    MakeToggle(AutoPage, "🔴 Auto Spam Loop", false, function(v)
+        AutoRunning = v
+        if v then
+            Notify("🤖 Auto Spam iniciado!", Color3.fromRGB(52, 211, 153))
+            task.spawn(function()
+                while AutoRunning do
+                    SpamAllPlayers()
+                    task.wait(Settings.AutoInterval)
+                end
+            end)
+        else
+            Notify("⏹️ Auto Spam parado", Color3.fromRGB(239, 68, 68))
+        end
+    end)
+    
+    MakeSection(AutoPage, "⏱️ INTERVALO")
+    local IntervalBtns = Instance.new("Frame", AutoPage)
+    IntervalBtns.Size = UDim2.new(1, 0, 0, 40)
+    IntervalBtns.BackgroundTransparency = 1
+    IntervalBtns.LayoutOrder = #AutoPage:GetChildren()
+    local intervalLayout = Instance.new("UIListLayout", IntervalBtns)
+    intervalLayout.FillDirection = Enum.FillDirection.Horizontal
+    intervalLayout.Padding = UDim.new(0, 5)
+    for _, v in ipairs({0.5, 1, 2, 5}) do
+        local btn = Instance.new("TextButton", IntervalBtns)
+        btn.Size = UDim2.new(0.25, -4, 1, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+        btn.Text = v .. "s"
+        btn.TextColor3 = Color3.fromRGB(235, 235, 245)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        btn.BorderSizePixel = 0
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        btn.Activated:Connect(function()
+            Settings.AutoInterval = v
+            Notify("⏱️ Intervalo: " .. v .. "s", Color3.fromRGB(99, 102, 241))
+        end)
+    end
+    
+    MakeSection(AutoPage, "✅ TIPOS NO LOOP")
+    MakeToggle(AutoPage, "Incluir ProximityPrompts", Settings.IncludePrompts, function(v) Settings.IncludePrompts = v end)
+    MakeToggle(AutoPage, "Incluir ClickDetectors", Settings.IncludeClicks, function(v) Settings.IncludeClicks = v end)
+    MakeToggle(AutoPage, "Incluir Remotes", Settings.IncludeRemotes, function(v) Settings.IncludeRemotes = v end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  ABA 3: SCAN
+    -- ════════════════════════════════════════════════════════════════
+    MakeSection(ScanPage, "🔍 SCANNER DE REMOTES")
+    
+    MakeButton(ScanPage, "🔄", "ESCANEAR TODOS OS REMOTES", "ReplicatedStorage, Workspace, etc", Color3.fromRGB(99, 102, 241), function()
+        local found = {}
+        local seen = {}
+        
+        local function Add(obj, location)
+            if seen[obj] then return end
+            if not (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) then return end
+            if IsForbiddenPath(obj) then return end
+            
+            seen[obj] = true
+            local isSafe, kw = IsBlacklisted(obj.Name)
+            
+            table.insert(found, {
+                Name = obj.Name,
+                Path = obj:GetFullName(),
+                Location = location,
+                Type = obj:IsA("RemoteFunction") and "RF" or "RE",
+                Object = obj,
+                Safe = not isSafe
+            })
+        end
+        
+        pcall(function() for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do Add(obj, "ReplicatedStorage") end end)
+        pcall(function() for _, obj in ipairs(workspace:GetDescendants()) do Add(obj, "Workspace") end end)
+        pcall(function() for _, obj in ipairs(lp:WaitForChild("PlayerGui"):GetDescendants()) do Add(obj, "PlayerGui") end end)
+        
+        local services = {"Chat", "Teams", "SoundService", "Lighting", "StarterGui"}
+        for _, svc in ipairs(services) do
+            pcall(function()
+                local service = game:GetService(svc)
+                for _, obj in ipairs(service:GetDescendants()) do Add(obj, svc) end
+            end)
+        end
+        
+        table.sort(found, function(a, b) if a.Safe ~= b.Safe then return a.Safe end return a.Name < b.Name end)
+        ScannedRemotes = found
+        
+        Notify("🔍 " .. #found .. " remotes encontrados!", Color3.fromRGB(99, 102, 241))
+        ModalTitle.Text = "📡 Remotes Escaneados"
+        UpdateRemoteList(found, false)
+        ModalGui.Enabled = true
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  ABA 4: RELATÓRIO (NOVO!)
+    -- ════════════════════════════════════════════════════════════════
+    MakeSection(ReportTab, "📊 GERADOR DE RELATÓRIO")
+    
+    MakeButton(ReportTab, "📋", "GERAR RELATÓRIO COMPLETO", "Varre todos os remotes e gera código Lua", Color3.fromRGB(251, 191, 36), function()
+        Notify("⏳ Gerando relatório...", Color3.fromRGB(251, 191, 36), 3)
+        
+        task.spawn(function()
+            local items = ScanAllRemotesForReport()
+            if #items == 0 then
+                Notify("⚠️ Nenhum remote encontrado!", Color3.fromRGB(239, 68, 68))
+                return
+            end
+            
+            local report = GenerateFullReport(items)
+            LastReport = report
+            
+            -- Atualiza texto no modal
+            ReportText.Text = report
+            ReportScroll.CanvasSize = UDim2.new(0, 0, 0, ReportText.AbsoluteSize.Y + 50)
+            
+            Notify("✅ Relatório gerado! " .. #items .. " remotes", Color3.fromRGB(52, 211, 153))
+            ReportGui.Enabled = true
+        end)
+    end)
+    
+    MakeButton(ReportTab, "👑", "GERAR RELATÓRIO ADMIN", "Só comandos administrativos", Color3.fromRGB(139, 92, 246), function()
+        Notify("⏳ Gerando relatório admin...", Color3.fromRGB(139, 92, 246), 3)
+        
+        task.spawn(function()
+            local allItems = ScanAllRemotesForReport()
+            local adminItems = {}
+            
+            for _, item in ipairs(allItems) do
+                if item.tag ~= "MISC" then
+                    table.insert(adminItems, item)
+                end
+            end
+            
+            if #adminItems == 0 then
+                Notify("⚠️ Nenhum remote admin encontrado!", Color3.fromRGB(239, 68, 68))
+                return
+            end
+            
+            local report = GenerateFullReport(adminItems)
+            LastReport = report
+            
+            ReportText.Text = report
+            ReportScroll.CanvasSize = UDim2.new(0, 0, 0, ReportText.AbsoluteSize.Y + 50)
+            
+            Notify("✅ Relatório admin! " .. #adminItems .. " remotes", Color3.fromRGB(52, 211, 153))
+            ReportGui.Enabled = true
+        end)
+    end)
+    
+    MakeButton(ReportTab, "📋", "VER ÚLTIMO RELATÓRIO", "Abre o relatório já gerado", Color3.fromRGB(99, 102, 241), function()
+        if LastReport then
+            ReportText.Text = LastReport
+            ReportScroll.CanvasSize = UDim2.new(0, 0, 0, ReportText.AbsoluteSize.Y + 50)
+            ReportGui.Enabled = true
+        else
+            Notify("⚠️ Gere um relatório primeiro!", Color3.fromRGB(251, 191, 36))
+        end
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  ABA 5: CONFIG
+    -- ════════════════════════════════════════════════════════════════
+    MakeSection(ConfigPage, "🛡️ PROTEÇÃO ANTI-KICK")
+    
+    MakeToggle(ConfigPage, "🛡️ Modo Seguro (Delay)", Settings.SafeMode, function(v)
+        Settings.SafeMode = v
+        Notify(v and "🛡️ Modo Seguro ON" or "⚡ Modo Rápido", v and Color3.fromRGB(52, 211, 153) or Color3.fromRGB(251, 191, 36))
+    end)
+    
+    MakeToggle(ConfigPage, "🎭 Spoofing de Argumentos", Settings.Spoofing, function(v)
+        Settings.Spoofing = v
+        Notify(v and "🎭 Spoofing ON" or "🎭 Spoofing OFF", Color3.fromRGB(139, 92, 246))
+    end)
+    
+    MakeSection(ConfigPage, "⏱️ DELAY")
+    local DelayBtns = Instance.new("Frame", ConfigPage)
+    DelayBtns.Size = UDim2.new(1, 0, 0, 40)
+    DelayBtns.BackgroundTransparency = 1
+    DelayBtns.LayoutOrder = #ConfigPage:GetChildren()
+    local delayLayout = Instance.new("UIListLayout", DelayBtns)
+    delayLayout.FillDirection = Enum.FillDirection.Horizontal
+    delayLayout.Padding = UDim.new(0, 5)
+    for _, v in ipairs({0.02, 0.05, 0.1, 0.2}) do
+        local btn = Instance.new("TextButton", DelayBtns)
+        btn.Size = UDim2.new(0.25, -4, 1, 0)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+        btn.Text = v .. "s"
+        btn.TextColor3 = Color3.fromRGB(235, 235, 245)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 11
+        btn.BorderSizePixel = 0
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        btn.Activated:Connect(function()
+            Settings.Delay = v
+            Notify("⏱️ Delay: " .. v .. "s", Color3.fromRGB(99, 102, 241))
+        end)
+    end
+    
+    MakeButton(ConfigPage, "🔄", "RESETAR ESTATÍSTICAS", nil, Color3.fromRGB(99, 102, 241), function()
+        Stats = {Fired = 0, Blocked = 0, Spoofed = 0, Errors = 0, Accepted = 0}
+        Notify("📊 Estatísticas zeradas!", Color3.fromRGB(99, 102, 241))
+    end)
+    
+    -- ════════════════════════════════════════════════════════════════
+    --  BOTÃO FLUTUANTE
+    -- ════════════════════════════════════════════════════════════════
+    local FloatBtn = Instance.new("TextButton", NotifGui)
+    FloatBtn.Size = UDim2.new(0, 60, 0, 60)
+    FloatBtn.Position = UDim2.new(0, 20, 0.7, 0)
+    FloatBtn.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+    FloatBtn.Text = "📡"
+    FloatBtn.TextSize = 28
+    FloatBtn.Font = Enum.Font.GothamBold
+    FloatBtn.TextColor3 = Color3.new(1, 1, 1)
+    FloatBtn.BorderSizePixel = 0
+    Instance.new("UICorner", FloatBtn).CornerRadius = UDim.new(1, 0)
+    
+    local floatStroke = Instance.new("UIStroke", FloatBtn)
+    floatStroke.Color = Color3.new(1, 1, 1)
+    floatStroke.Thickness = 2
+    floatStroke.Transparency = 0.5
+    
+    task.spawn(function()
+        while true do
+            TweenService:Create(floatStroke, TweenInfo.new(1), {Transparency = 0.2}):Play()
+            task.wait(1)
+            TweenService:Create(floatStroke, TweenInfo.new(1), {Transparency = 0.6}):Play()
+            task.wait(1)
+        end
+    end)
+    
+    local FDragging, FStart, FPos
+    FloatBtn.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+            FDragging = true
+            FStart = i.Position
+            FPos = FloatBtn.Position
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(i)
+        if FDragging and (i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseMovement) then
+            local delta = i.Position - FStart
+            FloatBtn.Position = UDim2.new(FPos.X.Scale, FPos.X.Offset + delta.X, FPos.Y.Scale, FPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+            FDragging = false
+        end
+    end)
+    
+    FloatBtn.Activated:Connect(function()
+        Win.Visible = not Win.Visible
+        TweenService:Create(FloatBtn, TweenInfo.new(0.15), {
+            BackgroundColor3 = Win.Visible and Color3.fromRGB(99, 102, 241) or Color3.fromRGB(42, 42, 62)
+        }):Play()
+    end)
+    
+    -- Animação entrada
+    Win.Size = UDim2.new(0, W, 0, 0)
+    Win.BackgroundTransparency = 1
+    TweenService:Create(Win, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, W, 0, H),
+        BackgroundTransparency = 0
+    }):Play()
+    
+    task.delay(0.5, function()
+        Notify("📡 Remote Spam V4 carregado!", Color3.fromRGB(99, 102, 241), 3)
+        Notify("📊 Gerador de relatório incluído!", Color3.fromRGB(251, 191, 36), 3)
+        Notify("🎯 Fire com múltiplas variações!", Color3.fromRGB(52, 211, 153), 3)
+    end)
+    
+    return MainGui
+end
+
+-- ════════════════════════════════════════════════════════════════
+--  EXECUTAR
+-- ════════════════════════════════════════════════════════════════
+local success, err = pcall(CreateGUI)
+if not success then
+    warn("Erro: " .. tostring(err))
+    local fallback = Instance.new("ScreenGui", pg)
+    fallback.Name = "RS4_Fallback"
+    local btn = Instance.new("TextButton", fallback)
+    btn.Size = UDim2.new(0, 250, 0, 60)
+    btn.Position = UDim2.new(0.5, -125, 0.5, -30)
+    btn.BackgroundColor3 = Color3.fromRGB(220, 55, 55)
+    btn.Text = "⚠️ ERRO - CLIQUE PARA SPAM"
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    btn.Activated:Connect(function() SpamAllPlayers() end)
+else
+    print("✅ Remote Spam V4 - Final Edition carregado!")
+    print("📊 Gerador de relatório ativo")
+    print("🎯 Sistema de variações de argumentos ativo")
+end
