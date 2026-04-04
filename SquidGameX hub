@@ -1,0 +1,1054 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+--                    🦑 SQUID GAME X - HACKS AVANÇADOS v6.0
+--                    Rayfield Edition - Manipulação de Votos + Dinheiro Infinito
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local lp = Players.LocalPlayer
+
+-- Carregar Rayfield
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- INTRO (Mantida a animação original)
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function PlayIntro()
+    local intro = Instance.new("ScreenGui")
+    intro.Name = "SGX_Intro"
+    intro.ResetOnSpawn = false
+    intro.DisplayOrder = 99999
+    intro.Parent = lp.PlayerGui
+    
+    local bg = Instance.new("Frame", intro)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.new(0, 0, 0)
+    bg.BorderSizePixel = 0
+    bg.ZIndex = 99999
+    
+    local symbols = Instance.new("Frame", bg)
+    symbols.Size = UDim2.new(0, 350, 0, 120)
+    symbols.Position = UDim2.new(0.5, -175, 0.35, -60)
+    symbols.BackgroundTransparency = 1
+    symbols.ZIndex = 99999
+    
+    local circle = Instance.new("Frame", symbols)
+    circle.Size = UDim2.new(0, 0, 0, 0)
+    circle.Position = UDim2.new(0, 40, 0.5, 0)
+    circle.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+    circle.BorderSizePixel = 0
+    circle.ZIndex = 99999
+    Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+    
+    local tri = Instance.new("Frame", symbols)
+    tri.Size = UDim2.new(0, 0, 0, 0)
+    tri.Position = UDim2.new(0.5, 0, 0.5, 0)
+    tri.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    tri.BorderSizePixel = 0
+    tri.Rotation = 45
+    tri.ZIndex = 99999
+    
+    local square = Instance.new("Frame", symbols)
+    square.Size = UDim2.new(0, 0, 0, 0)
+    square.Position = UDim2.new(1, -40, 0.5, 0)
+    square.BackgroundColor3 = Color3.new(1, 1, 1)
+    square.BorderSizePixel = 0
+    square.ZIndex = 99999
+    
+    local txt = Instance.new("TextLabel", bg)
+    txt.Size = UDim2.new(1, 0, 0, 50)
+    txt.Position = UDim2.new(0, 0, 0.55, 0)
+    txt.BackgroundTransparency = 1
+    txt.Text = "SQUID GAME X"
+    txt.TextColor3 = Color3.fromRGB(255, 0, 80)
+    txt.TextSize = 45
+    txt.Font = Enum.Font.GothamBlack
+    txt.TextTransparency = 1
+    txt.ZIndex = 99999
+    
+    local sub = Instance.new("TextLabel", bg)
+    sub.Size = UDim2.new(1, 0, 0, 25)
+    sub.Position = UDim2.new(0, 0, 0.65, 0)
+    sub.BackgroundTransparency = 1
+    sub.Text = "HACKS AVANÇADOS"
+    sub.TextColor3 = Color3.fromRGB(0, 200, 255)
+    sub.TextSize = 22
+    sub.Font = Enum.Font.GothamBold
+    sub.TextTransparency = 1
+    sub.ZIndex = 99999
+    
+    local som = Instance.new("Sound", SoundService)
+    som.SoundId = "rbxassetid://1837879099"
+    som.Volume = 0.6
+    som:Play()
+    
+    wait(0.3)
+    
+    TweenService:Create(circle, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 90, 0, 90),
+        Position = UDim2.new(0, 0, 0.5, -45)
+    }):Play()
+    
+    wait(0.15)
+    TweenService:Create(tri, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 80, 0, 80),
+        Position = UDim2.new(0.5, -40, 0.5, -40)
+    }):Play()
+    
+    wait(0.15)
+    TweenService:Create(square, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 80, 0, 80),
+        Position = UDim2.new(1, -80, 0.5, -40)
+    }):Play()
+    
+    wait(0.4)
+    TweenService:Create(txt, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+    wait(0.15)
+    TweenService:Create(sub, TweenInfo.new(0.7), {TextTransparency = 0}):Play()
+    
+    wait(1.8)
+    
+    for _, obj in ipairs({bg, circle, tri, square, txt, sub}) do
+        TweenService:Create(obj, TweenInfo.new(0.7), {BackgroundTransparency = 1, TextTransparency = 1, ImageTransparency = 1}):Play()
+    end
+    
+    wait(0.8)
+    intro:Destroy()
+    som:Destroy()
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SONS
+-- ═══════════════════════════════════════════════════════════════════════════════
+local SFX = {}
+
+function SFX:Play(id, vol)
+    local s = Instance.new("Sound", SoundService)
+    s.SoundId = "rbxassetid://" .. tostring(id)
+    s.Volume = vol or 0.4
+    s:Play()
+    game:GetService("Debris"):AddItem(s, 3)
+end
+
+function SFX:Hover() self:Play(9114488953, 0.3) end
+function SFX:Click() self:Play(9114164197, 0.4) end
+function SFX:On() self:Play(9114167985, 0.4) end
+function SFX:Off() self:Play(9114168471, 0.4) end
+function SFX:Win() self:Play(9114488031, 0.5) end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- REMOTES
+-- ═══════════════════════════════════════════════════════════════════════════════
+local RS = ReplicatedStorage:WaitForChild("ReplicatedStorage", 10)
+local Remotes = RS and RS:WaitForChild("Remotes", 10)
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- SETTINGS
+-- ═══════════════════════════════════════════════════════════════════════════════
+local Settings = {
+    AntiElim = false, GodMode = false, Speed = false, Jump = false,
+    InfJump = false, NoClip = false, Fly = false, ESP = false,
+    FullBright = false, AutoFarm = false, VoteHack = false,
+    MoneyHack = false, SelectedVote = "Option1",
+    WalkSpeed = 50, JumpPower = 100, FlySpeed = 50
+}
+
+-- Variáveis para hacks avançados
+local FakeVotes = {}
+local VoteMultiplier = 10
+local MoneyMultiplier = 100
+local espFolder = nil
+local flyConn, flying = nil, false
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CHEATS BÁSICOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+local Cheats = {}
+
+function Cheats:AntiElim(e)
+    Settings.AntiElim = e
+    if e then
+        print("🛡️ Anti-Eliminação ATIVADO!")
+        SFX:On()
+        local function Protect(char)
+            local hum = char:WaitForChild("Humanoid", 5)
+            if hum then
+                hum.HealthChanged:Connect(function(h)
+                    if Settings.AntiElim and h <= 0 then hum.Health = hum.MaxHealth end
+                end)
+            end
+        end
+        if lp.Character then Protect(lp.Character) end
+        lp.CharacterAdded:Connect(Protect)
+    else
+        print("🛡️ Anti-Eliminação DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:GodMode(e)
+    Settings.GodMode = e
+    if e then
+        print("💚 God Mode ATIVADO!")
+        SFX:On()
+        local function God(char)
+            local hum = char:WaitForChild("Humanoid", 5)
+            if hum then
+                spawn(function()
+                    while Settings.GodMode and char.Parent do
+                        if hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
+                        wait(0.1)
+                    end
+                end)
+            end
+        end
+        if lp.Character then God(lp.Character) end
+        lp.CharacterAdded:Connect(God)
+    else
+        print("💚 God Mode DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:SpeedHack(e)
+    Settings.Speed = e
+    if e then
+        print("⚡ Speed Hack ATIVADO!")
+        SFX:On()
+        local function Set(char)
+            local hum = char:WaitForChild("Humanoid", 5)
+            if hum then hum.WalkSpeed = Settings.WalkSpeed end
+        end
+        if lp.Character then Set(lp.Character) end
+        lp.CharacterAdded:Connect(Set)
+        spawn(function()
+            while Settings.Speed do
+                if lp.Character then
+                    local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.WalkSpeed = Settings.WalkSpeed end
+                end
+                wait(0.5)
+            end
+        end)
+    else
+        Settings.Speed = false
+        if lp.Character then
+            local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = 16 end
+        end
+        print("⚡ Speed Hack DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:JumpHack(e)
+    Settings.Jump = e
+    if e then
+        print("🦘 Jump Hack ATIVADO!")
+        SFX:On()
+        local function Set(char)
+            local hum = char:WaitForChild("Humanoid", 5)
+            if hum then hum.JumpPower = Settings.JumpPower end
+        end
+        if lp.Character then Set(lp.Character) end
+        lp.CharacterAdded:Connect(Set)
+        spawn(function()
+            while Settings.Jump do
+                if lp.Character then
+                    local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+                    if hum then hum.JumpPower = Settings.JumpPower end
+                end
+                wait(0.5)
+            end
+        end)
+    else
+        Settings.Jump = false
+        if lp.Character then
+            local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.JumpPower = 50 end
+        end
+        print("🦘 Jump Hack DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+UserInputService.JumpRequest:Connect(function()
+    if Settings.InfJump and lp.Character then
+        local hum = lp.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+function Cheats:InfJump(e)
+    Settings.InfJump = e
+    print(e and "🚀 Infinite Jump ATIVADO!" or "🚀 Infinite Jump DESATIVADO!")
+    e and SFX:On() or SFX:Off()
+end
+
+RunService.Stepped:Connect(function()
+    if Settings.NoClip and lp.Character then
+        for _, p in ipairs(lp.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = false end
+        end
+    end
+end)
+
+function Cheats:NoClip(e)
+    Settings.NoClip = e
+    print(e and "👻 NoClip ATIVADO!" or "👻 NoClip DESATIVADO!")
+    e and SFX:On() or SFX:Off()
+    if not e and lp.Character then
+        for _, p in ipairs(lp.Character:GetDescendants()) do
+            if p:IsA("BasePart") then p.CanCollide = true end
+        end
+    end
+end
+
+function Cheats:Fly(e)
+    if e and not flying then
+        flying = true
+        Settings.Fly = true
+        print("🕊️ Fly ATIVADO!")
+        SFX:On()
+        local char = lp.Character
+        if not char then return end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        local bg = Instance.new("BodyGyro", root)
+        bg.P = 9e4
+        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.CFrame = root.CFrame
+        
+        local bv = Instance.new("BodyVelocity", root)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        
+        flyConn = RunService.RenderStepped:Connect(function()
+            if not flying then return end
+            local cam = workspace.CurrentCamera
+            local dir = Vector3.new(0, 0, 0)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir = dir - Vector3.new(0, 1, 0) end
+            bv.Velocity = dir * Settings.FlySpeed
+            bg.CFrame = cam.CFrame
+        end)
+    elseif not e and flying then
+        flying = false
+        Settings.Fly = false
+        if flyConn then flyConn:Disconnect() end
+        local char = lp.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                for _, c in ipairs(root:GetChildren()) do
+                    if c:IsA("BodyGyro") or c:IsA("BodyVelocity") then c:Destroy() end
+                end
+            end
+        end
+        print("🕊️ Fly DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:ESP(e)
+    if e then
+        if espFolder then espFolder:Destroy() end
+        Settings.ESP = true
+        print("👁️ ESP ATIVADO!")
+        SFX:On()
+        espFolder = Instance.new("Folder", workspace)
+        espFolder.Name = "ESP"
+        local function Create(p)
+            if p == lp then return end
+            local function OnChar(char)
+                local head = char:WaitForChild("Head", 5)
+                if not head then return end
+                local bb = Instance.new("BillboardGui", espFolder)
+                bb.AlwaysOnTop = true
+                bb.Size = UDim2.new(0, 100, 0, 40)
+                bb.StudsOffset = Vector3.new(0, 3, 0)
+                local f = Instance.new("Frame", bb)
+                f.Size = UDim2.new(1, 0, 1, 0)
+                f.BackgroundColor3 = Color3.fromRGB(255, 0, 80)
+                f.BackgroundTransparency = 0.6
+                local l = Instance.new("TextLabel", f)
+                l.Size = UDim2.new(1, 0, 1, 0)
+                l.BackgroundTransparency = 1
+                l.Text = p.Name
+                l.TextColor3 = Color3.new(1, 1, 1)
+                l.TextSize = 12
+                l.Font = Enum.Font.GothamBold
+                bb.Adornee = head
+            end
+            if p.Character then OnChar(p.Character) end
+            p.CharacterAdded:Connect(OnChar)
+        end
+        for _, p in ipairs(Players:GetPlayers()) do Create(p) end
+        Players.PlayerAdded:Connect(Create)
+    else
+        Settings.ESP = false
+        if espFolder then espFolder:Destroy() end
+        print("👁️ ESP DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:FullBright(e)
+    Settings.FullBright = e
+    if e then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+        print("☀️ Full Bright ATIVADO!")
+        SFX:On()
+    else
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 12
+        Lighting.FogEnd = 1000
+        Lighting.GlobalShadows = true
+        print("☀️ Full Bright DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:AutoFarm(e)
+    Settings.AutoFarm = e
+    if e then
+        print("🌾 Auto Farm ATIVADO!")
+        SFX:On()
+        spawn(function()
+            while Settings.AutoFarm do
+                wait(0.1)
+                if not lp.Character then continue end
+                local root = lp.Character:FindFirstChild("HumanoidRootPart")
+                if not root then continue end
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if not Settings.AutoFarm then break end
+                    if obj:IsA("BasePart") then
+                        local n = obj.Name:lower()
+                        if n:find("coin") or n:find("money") or n:find("gold") then
+                            pcall(function()
+                                root.CFrame = obj.CFrame + Vector3.new(0, 2, 0)
+                                firetouchinterest(root, obj, 0)
+                                firetouchinterest(root, obj, 1)
+                            end)
+                            wait(0.05)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        print("🌾 Auto Farm DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- HACKS AVANÇADOS - MANIPULAÇÃO DE VOTOS
+-- ═══════════════════════════════════════════════════════════════════════════════
+function Cheats:EnableVoteHack(e)
+    Settings.VoteHack = e
+    if e then
+        print("🗳️ HACK DE VOTOS ATIVADO!")
+        print("📊 Opção selecionada:", Settings.SelectedVote)
+        print("🔢 Multiplicador:", VoteMultiplier, "x")
+        SFX:On()
+        
+        if Remotes then
+            local voteRemote = Remotes:FindFirstChild("Voting") or Remotes:FindFirstChild("GamemodeVote")
+            if voteRemote then
+                spawn(function()
+                    while Settings.VoteHack do
+                        for i = 1, VoteMultiplier do
+                            pcall(function()
+                                voteRemote:FireServer(Settings.SelectedVote)
+                            end)
+                        end
+                        wait(0.1)
+                    end
+                end)
+            end
+        end
+        
+        spawn(function()
+            while Settings.VoteHack do
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= lp then
+                        FakeVotes[player.Name] = Settings.SelectedVote
+                    end
+                end
+                wait(1)
+            end
+        end)
+    else
+        print("🗳️ HACK DE VOTOS DESATIVADO!")
+        SFX:Off()
+        FakeVotes = {}
+    end
+end
+
+function Cheats:SetVoteOption(option)
+    Settings.SelectedVote = option
+    print("🎯 Opção de voto definida:", option)
+    SFX:Click()
+end
+
+function Cheats:SetVoteMultiplier(mult)
+    VoteMultiplier = mult
+    print("🔢 Multiplicador de votos:", mult, "x")
+    SFX:Click()
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- HACKS AVANÇADOS - DINHEIRO INFINITO
+-- ═══════════════════════════════════════════════════════════════════════════════
+function Cheats:EnableMoneyHack(e)
+    Settings.MoneyHack = e
+    if e then
+        print("💰 HACK DE DINHEIRO ATIVADO!")
+        print("💎 Multiplicador:", MoneyMultiplier, "x")
+        SFX:On()
+        
+        pcall(function()
+            local oldNamecall
+            oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+                local args = {...}
+                local method = getnamecallmethod()
+                
+                if method == "FireServer" or method == "InvokeServer" then
+                    local name = self.Name:lower()
+                    
+                    if name:find("buy") or name:find("purchase") or name:find("spend") then
+                        if Settings.MoneyHack then
+                            print("💰 Compra interceptada:", self.Name)
+                            spawn(function()
+                                for i = 1, MoneyMultiplier do
+                                    if Remotes then
+                                        local sellRemote = Remotes:FindFirstChild("Sell")
+                                        if sellRemote then
+                                            pcall(function() sellRemote:FireServer() end)
+                                        end
+                                    end
+                                    wait(0.05)
+                                end
+                            end)
+                            return nil
+                        end
+                    end
+                    
+                    if name:find("reward") or name:find("daily") or name:find("coin") then
+                        if Settings.MoneyHack then
+                            for i = 1, MoneyMultiplier do
+                                oldNamecall(self, unpack(args))
+                            end
+                            print("💰 Recompensa multiplicada por", MoneyMultiplier)
+                            return nil
+                        end
+                    end
+                end
+                
+                return oldNamecall(self, ...)
+            end)
+        end)
+        
+        spawn(function()
+            while Settings.MoneyHack do
+                if Remotes then
+                    local daily = Remotes:FindFirstChild("DailyRewardRequest")
+                    if daily then
+                        pcall(function() daily:FireServer() end)
+                    end
+                end
+                wait(5)
+            end
+        end)
+    else
+        print("💰 HACK DE DINHEIRO DESATIVADO!")
+        SFX:Off()
+    end
+end
+
+function Cheats:SetMoneyMultiplier(mult)
+    MoneyMultiplier = mult
+    print("💎 Multiplicador de dinheiro:", mult, "x")
+    SFX:Click()
+end
+
+function Cheats:SellForMoney()
+    if Remotes then
+        local sell = Remotes:FindFirstChild("Sell")
+        if sell then
+            for i = 1, MoneyMultiplier do
+                pcall(function() sell:FireServer() end)
+            end
+            print("💰 Vendido! Ganhou", MoneyMultiplier, "x coins!")
+            SFX:Win()
+        end
+    end
+end
+
+function Cheats:ForceDailyReward()
+    if Remotes then
+        local daily = Remotes:FindFirstChild("DailyRewardRequest")
+        if daily then
+            for i = 1, MoneyMultiplier do
+                pcall(function() daily:FireServer() end)
+            end
+            print("🎁 Recompensa diária coletada", MoneyMultiplier, "x!")
+            SFX:Win()
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- FUNÇÕES DO JOGO (REMOTES)
+-- ═══════════════════════════════════════════════════════════════════════════════
+function Cheats:Revive()
+    if Remotes then
+        local r = Remotes:FindFirstChild("UseRevive")
+        if r then pcall(function() r:InvokeServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:SafeTP(loc)
+    if Remotes then
+        local r = Remotes:FindFirstChild("SafeTP")
+        if r then pcall(function() r:FireServer(loc or "Lobby") end) SFX:Win() end
+    end
+end
+
+function Cheats:BuyFrontman()
+    if Remotes then
+        local r = Remotes:FindFirstChild("PurchaseFrontman")
+        if r then pcall(function() r:InvokeServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:BuyGuard()
+    if Remotes then
+        local r = Remotes:FindFirstChild("PurchaseGuard")
+        if r then pcall(function() r:InvokeServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:BuyDetective()
+    if Remotes then
+        local r = Remotes:FindFirstChild("PurchaseDetective")
+        if r then pcall(function() r:InvokeServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:UpgradeBoost()
+    if Remotes then
+        local r = Remotes:FindFirstChild("UpgradeBoost")
+        if r then pcall(function() r:FireServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:BuyExtraLife()
+    if Remotes then
+        local r = Remotes:FindFirstChild("ExtraLifePurchase")
+        if r then pcall(function() r:InvokeServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:SkipQuest()
+    if Remotes then
+        local r = Remotes:FindFirstChild("SkipQuest")
+        if r then pcall(function() r:FireServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:SkipCutscene()
+    if Remotes then
+        local r = Remotes:FindFirstChild("SkipCutscene")
+        if r then pcall(function() r:FireServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:DailyReward()
+    if Remotes then
+        local r = Remotes:FindFirstChild("DailyRewardRequest")
+        if r then pcall(function() r:FireServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:Prestige()
+    if Remotes then
+        local r = Remotes:FindFirstChild("PrestigeRequest")
+        if r then pcall(function() r:FireServer() end) SFX:Win() end
+    end
+end
+
+function Cheats:KillAll()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= lp and p.Character then
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+    end
+    SFX:Win()
+end
+
+function Cheats:TPFinish()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local n = obj.Name:lower()
+            if n:find("finish") or n:find("goal") or n:find("end") then
+                if lp.Character then
+                    local root = lp.Character:FindFirstChild("HumanoidRootPart")
+                    if root then root.CFrame = obj.CFrame + Vector3.new(0, 5, 0) SFX:Win() return end
+                end
+            end
+        end
+    end
+end
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- RAYFIELD INTERFACE
+-- ═══════════════════════════════════════════════════════════════════════════════
+local function CreateRayfieldHub()
+    local Window = Rayfield:CreateWindow({
+        Name = "🦑 Squid Game X - Hacks Avançados",
+        LoadingTitle = "Carregando Hacks...",
+        LoadingSubtitle = "by SGX Team",
+        ConfigurationSaving = {
+            Enabled = true,
+            FolderName = "SGX_Config",
+            FileName = "SGX_v6"
+        },
+        Discord = {
+            Enabled = false,
+            Invite = "noinvite",
+            RememberJoins = true
+        },
+        KeySystem = false
+    })
+
+    -- TAB: PROTEÇÃO
+    local ProtecaoTab = Window:CreateTab("🛡️ Proteção", "shield")
+    
+    ProtecaoTab:CreateToggle({
+        Name = "Anti-Eliminação",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:AntiElim(Value)
+        end,
+    })
+    
+    ProtecaoTab:CreateToggle({
+        Name = "God Mode",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:GodMode(Value)
+        end,
+    })
+    
+    ProtecaoTab:CreateButton({
+        Name = "💚 Reviver",
+        Callback = function()
+            Cheats:Revive()
+        end,
+    })
+    
+    ProtecaoTab:CreateButton({
+        Name = "💚 Comprar Vida Extra",
+        Callback = function()
+            Cheats:BuyExtraLife()
+        end,
+    })
+
+    -- TAB: MOVIMENTO
+    local MovimentoTab = Window:CreateTab("🏃 Movimento", "zap")
+    
+    MovimentoTab:CreateToggle({
+        Name = "Speed Hack",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:SpeedHack(Value)
+        end,
+    })
+    
+    MovimentoTab:CreateSlider({
+        Name = "Velocidade",
+        Range = {16, 200},
+        Increment = 1,
+        Suffix = "Speed",
+        CurrentValue = 50,
+        Callback = function(Value)
+            Settings.WalkSpeed = Value
+        end,
+    })
+    
+    MovimentoTab:CreateToggle({
+        Name = "Jump Hack",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:JumpHack(Value)
+        end,
+    })
+    
+    MovimentoTab:CreateSlider({
+        Name = "Poder do Pulo",
+        Range = {50, 300},
+        Increment = 1,
+        Suffix = "Power",
+        CurrentValue = 100,
+        Callback = function(Value)
+            Settings.JumpPower = Value
+        end,
+    })
+    
+    MovimentoTab:CreateToggle({
+        Name = "Infinite Jump",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:InfJump(Value)
+        end,
+    })
+    
+    MovimentoTab:CreateToggle({
+        Name = "NoClip",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:NoClip(Value)
+        end,
+    })
+    
+    MovimentoTab:CreateToggle({
+        Name = "Fly",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:Fly(Value)
+        end,
+    })
+    
+    MovimentoTab:CreateSlider({
+        Name = "Fly Speed",
+        Range = {10, 200},
+        Increment = 1,
+        Suffix = "Speed",
+        CurrentValue = 50,
+        Callback = function(Value)
+            Settings.FlySpeed = Value
+        end,
+    })
+
+    -- TAB: VISUAL
+    local VisualTab = Window:CreateTab("👁️ Visual", "eye")
+    
+    VisualTab:CreateToggle({
+        Name = "ESP (Jogadores)",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:ESP(Value)
+        end,
+    })
+    
+    VisualTab:CreateToggle({
+        Name = "Full Bright",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:FullBright(Value)
+        end,
+    })
+    
+    VisualTab:CreateButton({
+        Name = "🎯 TP para Final",
+        Callback = function()
+            Cheats:TPFinish()
+        end,
+    })
+    
+    VisualTab:CreateButton({
+        Name = "💥 Kill All (Matar Todos)",
+        Callback = function()
+            Cheats:KillAll()
+        end,
+    })
+
+    -- TAB: HACKS AVANÇADOS
+    local HacksTab = Window:CreateTab("🔥 Hacks Avançados", "flame")
+    
+    -- Seção: Votos
+    HacksTab:CreateSection("🗳️ Manipulação de Votos")
+    
+    HacksTab:CreateToggle({
+        Name = "Ativar Hack de Votos",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:EnableVoteHack(Value)
+        end,
+    })
+    
+    HacksTab:CreateDropdown({
+        Name = "Opção de Voto",
+        Options = {"Option1", "Option2", "Option3", "Option4"},
+        CurrentOption = "Option1",
+        Callback = function(Option)
+            Cheats:SetVoteOption(Option)
+        end,
+    })
+    
+    HacksTab:CreateSlider({
+        Name = "Multiplicador de Votos",
+        Range = {1, 100},
+        Increment = 1,
+        Suffix = "x",
+        CurrentValue = 10,
+        Callback = function(Value)
+            Cheats:SetVoteMultiplier(Value)
+        end,
+    })
+    
+    -- Seção: Dinheiro
+    HacksTab:CreateSection("💰 Dinheiro Infinito")
+    
+    HacksTab:CreateToggle({
+        Name = "Ativar Money Hack",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:EnableMoneyHack(Value)
+        end,
+    })
+    
+    HacksTab:CreateSlider({
+        Name = "Multiplicador de Coins",
+        Range = {1, 500},
+        Increment = 1,
+        Suffix = "x",
+        CurrentValue = 100,
+        Callback = function(Value)
+            Cheats:SetMoneyMultiplier(Value)
+        end,
+    })
+    
+    HacksTab:CreateButton({
+        Name = "💰 Vender (Ganhar Coins)",
+        Callback = function()
+            Cheats:SellForMoney()
+        end,
+    })
+    
+    HacksTab:CreateButton({
+        Name = "🎁 Forçar Daily Reward",
+        Callback = function()
+            Cheats:ForceDailyReward()
+        end,
+    })
+
+    -- TAB: LOJA
+    local LojaTab = Window:CreateTab("🛒 Loja", "shopping-cart")
+    
+    LojaTab:CreateButton({
+        Name = "👔 Comprar Frontman",
+        Callback = function()
+            Cheats:BuyFrontman()
+        end,
+    })
+    
+    LojaTab:CreateButton({
+        Name = "👮 Comprar Guard",
+        Callback = function()
+            Cheats:BuyGuard()
+        end,
+    })
+    
+    LojaTab:CreateButton({
+        Name = "🕵️ Comprar Detective",
+        Callback = function()
+            Cheats:BuyDetective()
+        end,
+    })
+    
+    LojaTab:CreateButton({
+        Name = "⬆️ Upgrade Boost",
+        Callback = function()
+            Cheats:UpgradeBoost()
+        end,
+    })
+    
+    LojaTab:CreateButton({
+        Name = "🎁 Coletar Daily Reward",
+        Callback = function()
+            Cheats:DailyReward()
+        end,
+    })
+
+    -- TAB: EXTRAS
+    local ExtrasTab = Window:CreateTab("⭐ Extras", "star")
+    
+    ExtrasTab:CreateToggle({
+        Name = "Auto Farm Coins",
+        CurrentValue = false,
+        Callback = function(Value)
+            Cheats:AutoFarm(Value)
+        end,
+    })
+    
+    ExtrasTab:CreateButton({
+        Name = "🏠 Ir para Lobby",
+        Callback = function()
+            Cheats:SafeTP("Lobby")
+        end,
+    })
+    
+    ExtrasTab:CreateButton({
+        Name = "⭐ Prestige",
+        Callback = function()
+            Cheats:Prestige()
+        end,
+    })
+    
+    ExtrasTab:CreateButton({
+        Name = "⏭️ Skip Quest",
+        Callback = function()
+            Cheats:SkipQuest()
+        end,
+    })
+    
+    ExtrasTab:CreateButton({
+        Name = "⏭️ Skip Cutscene",
+        Callback = function()
+            Cheats:SkipCutscene()
+        end,
+    })
+
+    -- Notificação de carregamento
+    Rayfield:Notify({
+        Title = "✅ SGX Carregado!",
+        Content = "Hacks Avançados ativados. Use com cautela!",
+        Duration = 6.5,
+        Image = "check-circle",
+        Actions = {
+            Ignore = {
+                Name = "OK",
+                Callback = function()
+                    print("Usuário notificado")
+                end
+            },
+        },
+    })
+end
+
+-- INICIAR
+PlayIntro()
+wait(0.5)
+CreateRayfieldHub()
+
+print("✅ SQUID GAME X - HACKS AVANÇADOS (Rayfield) CARREGADO!")
+print("🗳️ Manipulação de votos ativada!")
+print("💰 Money hack ativado!")
