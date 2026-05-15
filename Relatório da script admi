@@ -1,0 +1,408 @@
+-- ADMIN & GAME SCANNER PRO
+-- Escaneia toda a infraestrutura administrativa do jogo
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- ESPERA JOGADOR
+repeat task.wait() until LocalPlayer.Character
+local Character = LocalPlayer.Character
+
+-- PALAVRAS-CHAVE ADMIN
+local ADMIN_KEYWORDS = {
+    "admin", "mod", "moderator", "owner", "cmd", "command", "ban", "kick",
+    "warn", "mute", "rank", "permission", "auth", "handler", "server",
+    "backdoor", "exploit", "hack", "anti", "log", "punish", "kill",
+    "to", "bring", "freeze", "jail", "crash", "shutdown", "vip",
+    "premium", " pdata", "datastore", "ds", "inventory", "money",
+    "give", "tool", "gear", "banland", "detection", "remote", "r6"
+}
+
+-- SERVIÇOS PARA SCANEAR
+local SERVICES = {
+    game:GetService("Workspace"),
+    game:GetService("ReplicatedStorage"),
+    game:GetService("StarterGui"),
+    game:GetService("StarterPlayer"),
+    game:GetService("Lighting"),
+    game:GetService("Players"),
+    game:GetService("SoundService"),
+    game:GetService("Chat"),
+    game:GetService("TextChatService")
+}
+
+-- TENTAR PEGAR SERVIÇOS DO SERVIDOR (se executor tiver acesso)
+pcall(function()
+    table.insert(SERVICES, game:GetService("ServerScriptService"))
+    table.insert(SERVICES, game:GetService("ServerStorage"))
+end)
+
+-- DADOS DO RELATÓRIO
+local Report = {
+    metadata = {
+        gameId = game.PlaceId,
+        gameName = "Unknown",
+        executor = identifyexecutor and identifyexecutor() or "Unknown",
+        scanTime = os.date("%Y-%m-%d %H:%M:%S"),
+        player = LocalPlayer.Name,
+        userId = LocalPlayer.UserId
+    },
+    adminRemotes = {},
+    adminScripts = {},
+    adminGuis = {},
+    suspiciousObjects = {},
+    serverStats = {},
+    backdoorIndicators = {},
+    playerData = {},
+    antiCheat = {}
+}
+
+-- PEGAR NOME DO JOGO
+pcall(function()
+    local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+    Report.metadata.gameName = info.Name
+end)
+
+-- FUNÇÃO: Verifica se é admin-related
+local function isAdminRelated(name)
+    local lower = name:lower()
+    for _, keyword in ipairs(ADMIN_KEYWORDS) do
+        if lower:find(keyword) then
+            return true, keyword
+        end
+    end
+    return false, nil
+end
+
+-- FUNÇÃO: Extrair ID se for asset
+local function getAssetId(obj)
+    local id = nil
+    if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+        id = tostring(obj.Image):match("%d+")
+    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        id = tostring(obj.Texture):match("%d+")
+    elseif obj:IsA("MeshPart") then
+        id = tostring(obj.MeshId):match("%d+")
+        local texId = tostring(obj.TextureID):match("%d+")
+        return id, texId
+    end
+    return id, nil
+end
+
+-- FUNÇÃO: Scan recursivo
+local scanned = 0
+local maxScan = 8000
+
+local function deepScan(parent, path)
+    if scanned >= maxScan then return end
+    
+    for _, child in pairs(parent:GetChildren()) do
+        if scanned >= maxScan then break end
+        scanned = scanned + 1
+        
+        local fullPath = path .. "/" .. child.Name
+        local isAdmin, keyword = isAdminRelated(child.Name)
+        
+        -- REMOTES DE ADMIN
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") or child:IsA("BindableEvent") then
+            if isAdmin then
+                table.insert(Report.adminRemotes, {
+                    type = child.ClassName,
+                    name = child.Name,
+                    path = fullPath,
+                    keyword = keyword,
+                    parentType = parent.ClassName
+                })
+            end
+            
+            -- Verifica se o remote tem características de backdoor (nomes genéricos + pasta de jogador)
+            if child.Name:lower():find("func") or child.Name:lower():find("remote") or child.Name == "Event" then
+                if fullPath:find("Backpack") or fullPath:find("Character") or fullPath:find("PlayerGui") then
+                    table.insert(Report.backdoorIndicators, {
+                        type = child.ClassName,
+                        name = child.Name,
+                        path = fullPath,
+                        risk = "HIGH - Generic remote in player tools"
+                    })
+                end
+            end
+        end
+        
+        -- SCRIPTS DE ADMIN / MODERAÇÃO
+        if child:IsA("Script") or child:IsA("LocalScript") or child:IsA("ModuleScript") then
+            if isAdmin then
+                table.insert(Report.adminScripts, {
+                    type = child.ClassName,
+                    name = child.Name,
+                    path = fullPath,
+                    keyword = keyword
+                })
+            end
+            
+            -- Anti-cheat detection
+            if child.Name:lower():find("anti") or child.Name:lower():find("detect") or 
+               child.Name:lower():find("check") or child.Name:lower():find("hack") or
+               child.Name:lower():find("exploit") then
+                table.insert(Report.antiCheat, {
+                    name = child.Name,
+                    path = fullPath,
+                    type = child.ClassName
+                })
+            end
+        end
+        
+        -- GUIs ADMIN
+        if child:IsA("ScreenGui") or child:IsA("Frame") or child:IsA("TextButton") then
+            if isAdmin then
+                local assetId, texId = getAssetId(child)
+                table.insert(Report.adminGuis, {
+                    type = child.ClassName,
+                    name = child.Name,
+                    path = fullPath,
+                    keyword = keyword,
+                    assetId = assetId
+                })
+            end
+        end
+        
+        -- OBJETOS SUSPEITOS GERAIS (injetores, backdoors visuais)
+        if child.Name:lower():find("infinite") or child.Name:lower():find("yield") or 
+           child.Name:lower():find("backdoor") or child.Name:lower():find("dex") or
+           child.Name:lower():find("http") or child.Name:lower():find("webhook") then
+            table.insert(Report.suspiciousObjects, {
+                name = child.Name,
+                path = fullPath,
+                class = child.ClassName
+            })
+        end
+        
+        -- Recursão
+        if #child:GetChildren() > 0 then
+            deepScan(child, fullPath)
+        end
+    end
+end
+
+-- SCANEAR TODOS OS SERVIÇOS
+for _, service in ipairs(SERVICES) do
+    if service then
+        pcall(function()
+            deepScan(service, service.Name)
+        end)
+    end
+end
+
+-- SCANEAR DADOS DE OUTROS JOGADORES (se visível)
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= LocalPlayer then
+        pcall(function()
+            local leaderstats = plr:FindFirstChild("leaderstats")
+            if leaderstats then
+                for _, stat in pairs(leaderstats:GetChildren()) do
+                    if isAdminRelated(stat.Name) then
+                        table.insert(Report.playerData, {
+                            player = plr.Name,
+                            statName = stat.Name,
+                            value = stat.Value
+                        })
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- GERAR RELATÓRIO EM TEXTO
+local reportText = string.rep("=", 60) .. "\n"
+reportText = reportText .. "🛡️ RELATÓRIO ADMINISTRATIVO - SCANNER PRO\n"
+reportText = reportText .. string.rep("=", 60) .. "\n\n"
+
+reportText = reportText .. "📊 METADADOS:\n"
+reportText = reportText .. string.format("  Jogo: %s (%d)\n", Report.metadata.gameName, Report.metadata.gameId)
+reportText = reportText .. string.format("  Executor: %s\n", Report.metadata.executor)
+reportText = reportText .. string.format("  Data: %s\n", Report.metadata.scanTime)
+reportText = reportText .. string.format("  Scanner: %s (ID: %d)\n", Report.metadata.player, Report.metadata.userId)
+reportText = reportText .. string.format("  Objetos varridos: %d\n\n", scanned)
+
+-- ADMIN REMOTES
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("📡 REMOTES ADMIN/MOD (%d encontrados):\n", #Report.adminRemotes)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.adminRemotes) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.type, item.name)
+    reportText = reportText .. string.format("    Path: %s\n", item.path)
+    reportText = reportText .. string.format("    Keyword: %s\n\n", item.keyword)
+end
+if #Report.adminRemotes == 0 then
+    reportText = reportText .. "    (Nenhum remote admin encontrado)\n\n"
+end
+
+-- ADMIN SCRIPTS
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("📜 SCRIPTS ADMIN/MOD (%d encontrados):\n", #Report.adminScripts)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.adminScripts) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.type, item.name)
+    reportText = reportText .. string.format("    Path: %s\n", item.path)
+    reportText = reportText .. string.format("    Keyword: %s\n\n", item.keyword)
+end
+if #Report.adminScripts == 0 then
+    reportText = reportText .. "    (Nenhum script admin encontrado)\n\n"
+end
+
+-- ADMIN GUIs
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("🖥️ GUIs ADMIN/MOD (%d encontradas):\n", #Report.adminGuis)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.adminGuis) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.type, item.name)
+    reportText = reportText .. string.format("    Path: %s\n", item.path)
+    if item.assetId then
+        reportText = reportText .. string.format("    AssetID: %s\n", item.assetId)
+    end
+    reportText = reportText .. "\n"
+end
+
+-- BACKDOOR INDICATORS
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("⚠️ INDICADORES DE BACKDOOR (%d):\n", #Report.backdoorIndicators)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.backdoorIndicators) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.type, item.name)
+    reportText = reportText .. string.format("    Path: %s\n", item.path)
+    reportText = reportText .. string.format("    Risco: %s\n\n", item.risk)
+end
+if #Report.backdoorIndicators == 0 then
+    reportText = reportText .. "    (Nenhum indicador encontrado)\n\n"
+end
+
+-- ANTI-CHEAT
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("🛡️ ANTI-CHEAT DETECTADO (%d):\n", #Report.antiCheat)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.antiCheat) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.type, item.name)
+    reportText = reportText .. string.format("    Path: %s\n\n", item.path)
+end
+if #Report.antiCheat == 0 then
+    reportText = reportText .. "    (Nenhum anti-cheat óbvio)\n\n"
+end
+
+-- OBJETOS SUSPEITOS
+reportText = reportText .. string.rep("-", 60) .. "\n"
+reportText = reportText .. string.format("🚨 OBJETOS SUSPEITOS (%d):\n", #Report.suspiciousObjects)
+reportText = reportText .. string.rep("-", 60) .. "\n"
+for i, item in ipairs(Report.suspiciousObjects) do
+    reportText = reportText .. string.format("[%d] [%s] %s\n", i, item.class, item.name)
+    reportText = reportText .. string.format("    Path: %s\n\n", item.path)
+end
+
+reportText = reportText .. string.rep("=", 60) .. "\n"
+reportText = reportText .. "FIM DO RELATÓRIO\n"
+reportText = reportText .. string.rep("=", 60)
+
+-- ==========================================
+-- GUI - APENAS BOTÃO DE COPIAR
+-- ==========================================
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local SG = Instance.new("ScreenGui")
+SG.Name = "AdminScanner"
+SG.ResetOnSpawn = false
+SG.Parent = PlayerGui
+
+-- Frame central
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 300, 0, 200)
+Frame.Position = UDim2.new(0.5, -150, 0.5, -100)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+Frame.BorderSizePixel = 0
+Frame.Parent = SG
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 15)
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Position = UDim2.new(0, 0, 0, 10)
+Title.BackgroundTransparency = 1
+Title.Text = "🛡️ ADMIN SCANNER PRO"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = Frame
+
+-- Status
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 60)
+Status.Position = UDim2.new(0, 10, 0, 55)
+Status.BackgroundTransparency = 1
+Status.Text = string.format("✅ Scan completo!\n📡 Remotes: %d | 📜 Scripts: %d | 🖥️ GUIs: %d\n⚠️ Backdoors: %d | 🛡️ Anti-Cheat: %d",
+    #Report.adminRemotes,
+    #Report.adminScripts,
+    #Report.adminGuis,
+    #Report.backdoorIndicators,
+    #Report.antiCheat
+)
+Status.TextColor3 = Color3.fromRGB(200, 200, 200)
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 13
+Status.TextWrapped = true
+Status.Parent = Frame
+
+-- BOTÃO COPIAR
+local CopyBtn = Instance.new("TextButton")
+CopyBtn.Size = UDim2.new(0.8, 0, 0, 50)
+CopyBtn.Position = UDim2.new(0.1, 0, 0, 130)
+CopyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+CopyBtn.Text = "📋 COPIAR RELATÓRIO"
+CopyBtn.TextColor3 = Color3.new(1, 1, 1)
+CopyBtn.Font = Enum.Font.GothamBold
+CopyBtn.TextSize = 16
+CopyBtn.Parent = Frame
+
+Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 10)
+
+-- BOTÃO FECHAR
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 14
+CloseBtn.Parent = Frame
+
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+-- EVENTOS
+CopyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard(reportText)
+        CopyBtn.Text = "✅ COPIADO!"
+        CopyBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+        task.wait(2)
+        CopyBtn.Text = "📋 COPIAR RELATÓRIO"
+        CopyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        CopyBtn.Text = "❌ SEM CLIPBOARD"
+        task.wait(2)
+        CopyBtn.Text = "📋 COPIAR RELATÓRIO"
+    end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    SG:Destroy()
+end)
+
+-- NOTIFICAÇÃO
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "🛡️ Admin Scanner",
+    Text = "Scan completo! Clique em COPIAR",
+    Duration = 5
+})
+
+print("✅ ADMIN SCANNER COMPLETO")
+print(string.format("Encontrados: %d remotes, %d scripts, %d GUIs admin", 
+    #Report.adminRemotes, #Report.adminScripts, #Report.adminGuis))
