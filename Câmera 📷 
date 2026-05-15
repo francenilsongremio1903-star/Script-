@@ -1,0 +1,326 @@
+-- ============================================
+--   REMOTE CAMERA SYSTEM V1
+--   Delta Mobile Executor | by script
+-- ============================================
+
+local Players        = game:GetService("Players")
+local RunService     = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local LP     = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ======= STATE =======
+local placedCams   = {}       -- {part, label}
+local currentCam   = nil      -- índice atual
+local viewPlayer   = nil      -- player sendo espionado
+local placingMode  = false
+local menuOpen     = false
+
+-- ======= GUI BASE =======
+local SG = Instance.new("ScreenGui")
+SG.Name = "RemoteCamSys"
+SG.ResetOnSpawn = false
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+SG.Parent = game:GetService("CoreGui")
+
+-- Botão flutuante toggle
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0,58,0,58)
+ToggleBtn.Position = UDim2.new(0,8,0.5,-29)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(18,18,32)
+ToggleBtn.TextColor3 = Color3.new(1,1,1)
+ToggleBtn.Text = "📷"
+ToggleBtn.TextScaled = true
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Parent = SG
+Instance.new("UICorner",ToggleBtn).CornerRadius = UDim.new(1,0)
+
+-- Borda neon no toggle
+local stroke = Instance.new("UIStroke",ToggleBtn)
+stroke.Color = Color3.fromRGB(0,200,255)
+stroke.Thickness = 2
+
+-- Frame principal
+local MF = Instance.new("Frame")
+MF.Size  = UDim2.new(0,290,0,430)
+MF.Position = UDim2.new(0,74,0.5,-215)
+MF.BackgroundColor3 = Color3.fromRGB(12,12,22)
+MF.BorderSizePixel = 0
+MF.Visible = false
+MF.Parent = SG
+Instance.new("UICorner",MF).CornerRadius = UDim.new(0,14)
+local mfStroke = Instance.new("UIStroke",MF)
+mfStroke.Color = Color3.fromRGB(0,150,255)
+mfStroke.Thickness = 1.5
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,0,0,44)
+Title.BackgroundColor3 = Color3.fromRGB(20,20,45)
+Title.TextColor3 = Color3.fromRGB(0,220,255)
+Title.Text = "📷  Remote Camera System"
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.BorderSizePixel = 0
+Title.Parent = MF
+Instance.new("UICorner",Title).CornerRadius = UDim.new(0,14)
+
+-- ======= HELPER BOTÃO =======
+local function mkBtn(txt, y, col)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1,-16,0,36)
+    b.Position = UDim2.new(0,8,0,y)
+    b.BackgroundColor3 = col
+    b.TextColor3 = Color3.new(1,1,1)
+    b.Text = txt
+    b.TextScaled = true
+    b.Font = Enum.Font.Gotham
+    b.BorderSizePixel = 0
+    b.Parent = MF
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
+    return b
+end
+
+local function mkLabel(txt, y)
+    local l = Instance.new("TextLabel")
+    l.Size = UDim2.new(1,-16,0,22)
+    l.Position = UDim2.new(0,8,0,y)
+    l.BackgroundTransparency = 1
+    l.TextColor3 = Color3.fromRGB(160,160,210)
+    l.Text = txt
+    l.TextScaled = true
+    l.Font = Enum.Font.Gotham
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.Parent = MF
+    return l
+end
+
+-- Botões
+local BtnPlace    = mkBtn("📍  Colocar Câmera", 50,  Color3.fromRGB(30,120,70))
+local LblCams     = mkLabel("Câmeras: 0  |  Câmera ativa: —", 92)
+local BtnPrev     = mkBtn("◀  Câmera Anterior",  116, Color3.fromRGB(45,55,120))
+local BtnNext     = mkBtn("▶  Próxima Câmera",   158, Color3.fromRGB(45,55,120))
+local BtnInteract = mkBtn("⚡  Interagir (perto da cam)", 200, Color3.fromRGB(170,90,10))
+local BtnRemove   = mkBtn("🗑  Remover Câmera Atual", 242, Color3.fromRGB(140,25,25))
+local BtnExit     = mkBtn("🔙  Sair da Câmera",  284, Color3.fromRGB(55,55,65))
+
+-- Separador
+local sep = Instance.new("Frame")
+sep.Size = UDim2.new(1,-16,0,1)
+sep.Position = UDim2.new(0,8,0,328)
+sep.BackgroundColor3 = Color3.fromRGB(50,60,110)
+sep.BorderSizePixel = 0
+sep.Parent = MF
+
+local BtnSpyCam   = mkBtn("👁  Ver câmera de player (ciclar)", 336, Color3.fromRGB(110,30,155))
+local LblStatus   = mkLabel("Status: pronto", 382)
+local LblHint     = mkLabel("", 404)
+LblHint.TextColor3 = Color3.fromRGB(100,100,140)
+
+-- ======= CRIAR MARCADOR NO MUNDO =======
+local function createMarker(pos)
+    local p = Instance.new("Part")
+    p.Name = "RCS_Cam"
+    p.Size = Vector3.new(0.35,0.35,0.55)
+    p.CFrame = CFrame.new(pos)
+    p.Anchored = true
+    p.CanCollide = false
+    p.CanTouch = false
+    p.Material = Enum.Material.Neon
+    p.Color = Color3.fromRGB(0,220,255)
+    p.CastShadow = false
+    p.Parent = workspace
+
+    -- billboard label
+    local bb = Instance.new("BillboardGui",p)
+    bb.Size = UDim2.new(0,70,0,22)
+    bb.StudsOffset = Vector3.new(0,1.2,0)
+    bb.AlwaysOnTop = true
+    local lbl = Instance.new("TextLabel",bb)
+    lbl.Size = UDim2.new(1,0,1,0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(0,255,255)
+    lbl.Text = "CAM #"..(#placedCams+1)
+    lbl.TextScaled = true
+    lbl.Font = Enum.Font.GothamBold
+
+    return p
+end
+
+-- ======= ATUALIZA LABEL =======
+local function refreshLabel()
+    local active = currentCam and ("#"..currentCam) or (viewPlayer and viewPlayer.Name) or "—"
+    LblCams.Text = "Câmeras: "..#placedCams.."  |  Ativa: "..active
+end
+
+-- ======= ENTRAR / SAIR DA CÂMERA =======
+local function enterCam(idx)
+    if not placedCams[idx] then return end
+    currentCam  = idx
+    viewPlayer  = nil
+    Camera.CameraType = Enum.CameraType.Scriptable
+    Camera.CFrame = placedCams[idx].CFrame * CFrame.new(0,0.3,0)
+    LblStatus.Text = "Status: câmera #"..idx.." ativa"
+    LblHint.Text   = "Toque em ⚡ para interagir perto desta cam"
+    refreshLabel()
+end
+
+local function exitCam()
+    Camera.CameraType = Enum.CameraType.Custom
+    currentCam = nil
+    viewPlayer = nil
+    LblStatus.Text = "Status: livre"
+    LblHint.Text   = ""
+    refreshLabel()
+end
+
+-- ======= MODO COLOCAÇÃO =======
+local function togglePlace()
+    placingMode = not placingMode
+    if placingMode then
+        BtnPlace.BackgroundColor3 = Color3.fromRGB(160,25,25)
+        BtnPlace.Text = "❌  Cancelar colocação"
+        LblStatus.Text = "Status: toque no chão para colocar"
+        LblHint.Text   = "Clique/toque onde quer a câmera"
+    else
+        BtnPlace.BackgroundColor3 = Color3.fromRGB(30,120,70)
+        BtnPlace.Text = "📍  Colocar Câmera"
+        LblStatus.Text = "Status: livre"
+        LblHint.Text   = ""
+    end
+end
+
+-- ======= INTERAGIR PERTO DA CÂMERA =======
+local function interact()
+    local origin
+    if currentCam and placedCams[currentCam] then
+        origin = placedCams[currentCam].Position
+    elseif viewPlayer then
+        local char = viewPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            origin = char.HumanoidRootPart.Position
+        end
+    end
+    if not origin then LblStatus.Text = "Nenhuma câmera ativa!"; return end
+
+    local count = 0
+    local seen  = {}
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Position - origin).Magnitude < 18 then
+            local model = obj:FindFirstAncestorOfClass("Model") or obj.Parent
+            if model and not seen[model] then
+                seen[model] = true
+                for _, v in ipairs(model:GetDescendants()) do
+                    if v:IsA("RemoteEvent") then
+                        pcall(function() v:FireServer() end)
+                        count = count + 1
+                    elseif v:IsA("ProximityPrompt") then
+                        pcall(function()
+                            fireproximityprompt(v)
+                        end)
+                        count = count + 1
+                    end
+                end
+            end
+        end
+    end
+    LblStatus.Text = "Interagido: "..count.." objeto(s)"
+end
+
+-- ======= VER CÂMERA DE PLAYER =======
+local function cyclePlayerCam()
+    local others = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then table.insert(others, p) end
+    end
+    if #others == 0 then LblStatus.Text = "Nenhum player na sala"; return end
+
+    local nextIdx = 1
+    if viewPlayer then
+        for i, p in ipairs(others) do
+            if p == viewPlayer then nextIdx = (i % #others) + 1; break end
+        end
+    end
+
+    currentCam  = nil
+    viewPlayer  = others[nextIdx]
+    Camera.CameraType = Enum.CameraType.Scriptable
+    LblStatus.Text = "👁 Vendo: "..viewPlayer.Name
+    LblHint.Text   = "⚡ Interagir age perto deste player"
+    refreshLabel()
+end
+
+-- ======= FOLLOW PLAYER CAM =======
+RunService.RenderStepped:Connect(function()
+    if viewPlayer then
+        local char = viewPlayer.Character
+        if char then
+            local head = char:FindFirstChild("Head")
+            if head then
+                Camera.CFrame = head.CFrame
+            end
+        end
+    end
+end)
+
+-- ======= INPUT: TOQUE/CLIQUE NO MUNDO PARA COLOCAR =======
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe or not placingMode then return end
+    local isTouch = input.UserInputType == Enum.UserInputType.Touch
+    local isMouse = input.UserInputType == Enum.UserInputType.MouseButton1
+    if not (isTouch or isMouse) then return end
+
+    local pos = input.Position
+    local ray = Camera:ScreenPointToRay(pos.X, pos.Y)
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {LP.Character}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 600, params)
+    if result then
+        local marker = createMarker(result.Position + Vector3.new(0, 0.5, 0))
+        table.insert(placedCams, marker)
+        togglePlace()          -- desativa modo colocação
+        enterCam(#placedCams)  -- entra na cam recém-colocada
+    end
+end)
+
+-- ======= BOTÕES =======
+BtnPlace.MouseButton1Click:Connect(togglePlace)
+
+BtnNext.MouseButton1Click:Connect(function()
+    if #placedCams == 0 then LblStatus.Text = "Sem câmeras!"; return end
+    enterCam((currentCam or 0) % #placedCams + 1)
+end)
+
+BtnPrev.MouseButton1Click:Connect(function()
+    if #placedCams == 0 then LblStatus.Text = "Sem câmeras!"; return end
+    enterCam(((currentCam or 1) - 2) % #placedCams + 1)
+end)
+
+BtnInteract.MouseButton1Click:Connect(interact)
+BtnExit.MouseButton1Click:Connect(exitCam)
+
+BtnRemove.MouseButton1Click:Connect(function()
+    if not currentCam or not placedCams[currentCam] then
+        LblStatus.Text = "Nenhuma câmera selecionada"; return
+    end
+    placedCams[currentCam]:Destroy()
+    table.remove(placedCams, currentCam)
+    exitCam()
+    LblStatus.Text = "Câmera removida"
+    refreshLabel()
+end)
+
+BtnSpyCam.MouseButton1Click:Connect(cyclePlayerCam)
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    menuOpen = not menuOpen
+    MF.Visible = menuOpen
+    ToggleBtn.Text = menuOpen and "✖" or "📷"
+end)
+
+LblStatus.Text = "Status: pronto ✔"
